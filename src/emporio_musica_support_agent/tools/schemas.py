@@ -3,13 +3,15 @@
 Field descriptions on Input models become the JSON schema the model sees.
 """
 
+from datetime import date
 from decimal import Decimal
 from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
 
 from emporio_musica_support_agent.data.cleaning import Availability
-from emporio_musica_support_agent.data.models import ProductStatus
+from emporio_musica_support_agent.data.models import OrderStatus, ProductStatus
+from emporio_musica_support_agent.domain.windows import ReturnWindows
 from emporio_musica_support_agent.text import format_brl, round_money
 
 
@@ -130,6 +132,51 @@ class ProductDetailsResult(BaseModel):
     found: bool
     product: ProductDetails | None = None
     candidates: list[ProductSummary] = []  # ambiguous or fuzzy name: ask which one
+
+
+class OrderStatusInput(BaseModel):
+    order_id: int = Field(ge=1, description="Order number given by the customer.")
+    email: str | None = Field(None, description="Email the customer gave, exactly as typed.")
+    phone: str | None = Field(None, description="Phone the customer gave, exactly as typed.")
+
+    @model_validator(mode="after")
+    def check_contact_given(self) -> Self:
+        if self.email is not None and not self.email.strip():
+            self.email = None
+        if self.phone is not None and not self.phone.strip():
+            self.phone = None
+        if self.email is None and self.phone is None:
+            raise ValueError("ask the customer for the email or phone used in the purchase")
+        return self
+
+
+class OrderItemOut(BaseModel):
+    product_id: int
+    name: str
+    quantity: int
+
+
+class VerifiedOrder(BaseModel):
+    order_id: int
+    customer_first_name: str
+    status: OrderStatus
+    status_label: str  # "pendente", "confirmado", "enviado", "entregue", "cancelado"
+    order_date: date
+    items: list[OrderItemOut]
+    total: Money  # as charged (A-16)
+    payment: str  # "cartão de crédito em 3x"
+    tracking_code: str | None
+    estimated_delivery: date | None
+    is_late: bool  # shipped and estimated_delivery < reference date
+    notes: str | None  # cancellation reason
+    windows: ReturnWindows | None
+    windows_note: str | None  # why windows is None
+
+
+class OrderStatusResult(BaseModel):
+    verified: bool
+    order: VerifiedOrder | None = None
+    message: str | None = None  # "not_found_or_not_verified" when verified is False
 
 
 class CategorySummary(BaseModel):

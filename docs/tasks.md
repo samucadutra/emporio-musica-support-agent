@@ -145,15 +145,15 @@ How to use this file:
 - **Tests:** order 7 at 2026-02-20 → arrependimento open (3 days); at 2026-03-23 → arrependimento closed (34), defeito closed (48), garantia legal open; boundary: day 7 open, day 8 closed; order 8 → no windows, `is_late` at 2026-03-23; cancelled order → note; order dated after reference → no windows.
 - **Commit:** `feat: compute return and warranty windows`
 
-### [ ] T12 — Order tool: `get_order_status`
+### [x] T12 — Order tool: `get_order_status`
 
 - **Goal:** Verified order lookup that never leaks customer data (design §6.4).
 - **Files:** `src/.../tools/schemas.py`, `src/.../tools/orders.py`, `tests/unit/test_tools_orders.py`
 - **FRs:** FR-04, FR-07, FR-11
 - **Acceptance criteria:**
-  - [ ] Input validator demands email or phone, with the "ask the customer…" message.
-  - [ ] Unknown order and contact mismatch return an identical `OrderStatusResult`; both contacts must match when both are given.
-  - [ ] Verified output: first name, status label, items (names from the product table), total as stored, payment label, tracking, `is_late`, notes, windows; reference date = `store_today` or clock date.
+  - [x] Input validator demands email or phone, with the "ask the customer…" message.
+  - [x] Unknown order and contact mismatch return an identical `OrderStatusResult`; both contacts must match when both are given.
+  - [x] Verified output: first name, status label, items (names from the product table), total as stored, payment label, tracking, `is_late`, notes, windows; reference date = `store_today` or clock date.
 - **Tests:** order 7 + `leticia.rocha@jmail.com` → verified, first name "Letícia"; phone `67997890123` verifies; wrong email for 7 equals result for order 9999 (`==` on dumps); email right + phone wrong → not verified; order 3 total 3450 (not recomputed); order 17 notes present; order 8 `is_late` with `STORE_TODAY=2026-03-23`; serializing every verified order contains no customer email or phone; missing contact → validation error.
 - **Commit:** `feat: add verified get_order_status tool`
 

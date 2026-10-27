@@ -562,6 +562,13 @@ def get_order_status(repo: Repository, clock: Clock, settings: Settings,
 Docstring:
 > Look up one order after verifying the customer. Call ONLY when you have both the order number and the email or phone the customer used for the purchase. If either is missing, ask the customer first and don't call this tool with guessed values. If `verified` is false, say you couldn't find an order with those details and ask the customer to check them. Don't say whether the number or the contact was wrong. When verified, report status, items, total, payment, and the tracking code and estimated delivery if present. If `is_late` is true, say the delivery is late and offer to pass the case to the team. For returns, exchanges or warranty, decide ONLY from `windows` (`open`, `deadline`, `open_now`) and never compute dates yourself. Also call `search_policies` for the conditions. Never repeat the customer's email or phone.
 
+Implementation (`tools/orders.py`):
+- `Window` and `ReturnWindows` are imported from `domain/windows.py`.
+- `STATUS_LABELS` maps each status to its pt-BR label.
+- `NOT_VERIFIED` is the single result returned for both an unknown order and a contact mismatch.
+- `reference_date(settings, clock) -> date` returns `STORE_TODAY`, or the clock's date in `STORE_TIMEZONE`.
+- A blank email or phone counts as missing. An item whose product is missing is named `produto <id>`, a defensive fallback: T16 validates the foreign keys.
+
 Verification rules (`privacy.py`):
 - Email: `strip`, remove inner whitespace, `casefold`, compare for equality.
 - Phone: keep digits only. Strip a leading `55` when 13 digits remain, or a leading `0` when 12 remain, then require the 11-digit DDD + number to be equal. Numbers without the area code don't match. The README documents this.
