@@ -13,6 +13,7 @@ from emporio_musica_support_agent.data.models import (
     Order,
     OrderItem,
     Product,
+    Promotion,
 )
 from emporio_musica_support_agent.text import fold
 
@@ -135,6 +136,9 @@ class Repository:
         self._order_items: dict[int, list[OrderItem]] = {}
         for item in data.order_items:
             self._order_items.setdefault(item.order_id, []).append(item)
+        self._promotions: dict[int, list[Promotion]] = {}
+        for promotion in sorted(data.promotions, key=lambda p: p.promotion_id):
+            self._promotions.setdefault(promotion.product_id, []).append(promotion)
 
         aliases_by_category: dict[int, list[str]] = {}
         for alias, category_id in CATEGORY_ALIASES.items():
@@ -174,6 +178,19 @@ class Repository:
 
     def get_product(self, product_id: int) -> Product | None:
         return self._products.get(product_id)
+
+    def current_promotion(self, product_id: int) -> Promotion | None:
+        """The active promotion, only while the product can be bought (A-05)."""
+        product = self._products.get(product_id)
+        if product is None or product.availability != "disponível":
+            return None
+        active = (p for p in self._promotions.get(product_id, []) if p.is_active)
+        return next(active, None)
+
+    def inactive_promotions(self, product_id: int) -> list[Promotion]:
+        """Ended promotions (`is_active == 0`). An active promotion on an unavailable
+        product is on hold, not ended, so it isn't listed here."""
+        return [p for p in self._promotions.get(product_id, []) if not p.is_active]
 
     def get_order(self, order_id: int) -> Order | None:
         return self._orders.get(order_id)

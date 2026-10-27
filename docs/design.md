@@ -334,6 +334,7 @@ class Repository:
   - Weight 1 for materials and electronics: `nylon`, `aco`, `eletrico`, `cedro`, `mogno`.
 
   If fewer than `n` products fall inside the price band, the list is filled from outside it, using the same ranking. Specs aren't used, because they don't record things like the 7-string type. Checks: 113 Shelby SN-7C 7 Cordas Nylon (R$ 749,00) → 110 Giannini GWNE-7 7 Cordas Nylon (score 3), then 112 Tagima TW-7 7 Cordas Aço (score 2). 96 Giannini GF-3D Dreadnought → 91 Tagima Woodstock Dreadnought first. Both match the inventory's suggestions (§8).
+- `current_promotion` returns the product's `is_active` promotion only while the product is `disponível` (A-05). `inactive_promotions` returns the ended ones (`is_active == 0`). An active promotion on an unavailable product is in neither list: it's on hold, not ended, so the agent never calls it expired.
 - `brand` matches when the folded brand is a substring of the folded name. There's no brand column, and names like "Bateria Pearl…" don't start with the brand.
 - `get_customer` is only called inside `tools/orders.py`. No tool output contains a `Customer`.
 
@@ -450,8 +451,21 @@ Docstring:
 Pricing rules (`domain/pricing.py`, pure and unit-tested):
 - `final = price × (1 − d/100)`, rounded to 2 places.
 - `pix = price × 0.95`, rounded, only when there's no current promotion.
-- Installment minimums: n ≤ 3 → R$ 50, 4–6 → R$ 80, 7–12 → R$ 100. n is allowed if `final/n ≥ min(n)` or n = 1. `max_installments` is the largest allowed n; this is monotonic, because `final/n` falls while the minimum rises. Installment value = `final/n` rounded half-up.
-- Checks: 95 → PIX R$ 2.089,05, 12x R$ 183,25. 121 → R$ 439,20, no PIX. 81 → 6x R$ 99,98 (7x is R$ 85,70 < R$ 100).
+- Installment minimums: n ≤ 3 → R$ 50, 4–6 → R$ 80, 7–12 → R$ 100. n is allowed if `final/n ≥ min(n)` or n = 1. The check uses the exact quotient, not the rounded value. `max_installments` is the largest allowed n; this is monotonic, because `final/n` falls while the minimum rises. Installment value = `final/n` rounded half-up.
+- Checks: 95 → PIX R$ 2.089,05, 12x R$ 183,25. 121 → R$ 439,20, no PIX, up to 5x of R$ 87,84. 81 → 6x R$ 99,98 (7x is R$ 85,70 < R$ 100).
+
+```python
+# domain/pricing.py — callers pass only a current promotion (repo.current_promotion)
+@dataclass(frozen=True)
+class InstallmentOption:
+    n: int; value: Decimal; minimum: Decimal; allowed: bool
+
+def final_price(price: Decimal, promotion: Promotion | None) -> Decimal: ...
+def pix_price(price: Decimal, promotion: Promotion | None) -> Decimal | None: ...  # None with a promotion
+def installment_minimum(n: int) -> Decimal: ...          # ValueError outside 1..12
+def installment_options(final: Decimal) -> list[InstallmentOption]: ...  # n = 1..12
+def max_installments(final: Decimal) -> int: ...
+```
 
 ### 6.3 `list_categories` (FR-01, FR-08)
 

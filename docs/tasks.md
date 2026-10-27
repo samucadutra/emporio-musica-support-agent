@@ -87,14 +87,14 @@ How to use this file:
 - **Tests:** `category_id=5, max_price=1000` → the 12 IDs in PRD §12 order; "violao ate 1000" via free text matches the same set; "cedro" matches 84; "fender" doesn't match 135; "saxofone" resolves to category 6 with no products; "Takamine GD20" → match 95; "yamaha" → several candidates; typo "takamine gd2O" → fuzzy candidates. Session-scoped `repo` fixture.
 - **Commit:** `feat: add in-memory store repository with search`
 
-### [ ] T07 — Pricing: promotions, PIX and installments
+### [x] T07 — Pricing: promotions, PIX and installments
 
 - **Goal:** Pure pricing rules (design §6.2) and the repository's promotion queries.
 - **Files:** `src/.../domain/pricing.py`, `src/.../data/repository.py`, `tests/unit/test_pricing.py`
 - **FRs:** FR-02
 - **Acceptance criteria:**
-  - [ ] `Repository.current_promotion` (is_active and product `disponível`, A-05) and `inactive_promotions`.
-  - [ ] `final_price`, `pix_price` (None when a promotion is current), `installment_options` (1..12 with tiers A-11), `max_installments` — all `Decimal`, half-up.
+  - [x] `Repository.current_promotion` (is_active and product `disponível`, A-05) and `inactive_promotions`.
+  - [x] `final_price`, `pix_price` (None when a promotion is current), `installment_options` (1..12 with tiers A-11), `max_installments` — all `Decimal`, half-up.
 - **Tests:** 95: no current promotion, PIX 2089.05, 12x 183.25, inactive "Oferta Especial (12%)" listed; 121: final 439.20, no PIX; 81: max 6x of 99.98, 7x not allowed; at most one current promotion per product across the catalogue; a promotion on an out-of-stock product is not current (synthetic product).
 - **Commit:** `feat: add pricing rules for promotions, PIX and installments`
 
