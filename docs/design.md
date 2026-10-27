@@ -119,7 +119,7 @@ Dev: `pytest`, `ruff`, plus the existing `pandas` (used only by `scripts/inspect
 
 ## 3. Configuration
 
-`config.Settings(BaseSettings)`, with `model_config = SettingsConfigDict(env_file=".env", extra="ignore")`.
+`config.Settings(BaseSettings)`, with `model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_ignore_empty=True)`. `env_ignore_empty` makes an empty value such as `GOOGLE_API_KEY=` (as shipped in `.env.example`) mean "unset", so it becomes `None` and not `SecretStr("")`, and a blank `STORE_TODAY=` doesn't fail date parsing.
 
 | Field | Env var | Type | Default | Notes |
 |---|---|---|---|---|
@@ -146,7 +146,7 @@ Dev: `pytest`, `ruff`, plus the existing `pandas` (used only by `scripts/inspect
 | `retrieval_k` | `RETRIEVAL_K` | int | `4` | §7 |
 | `eval_delay_s` | `EVAL_DELAY_S` | float | `4` | Pause between eval cases for free-tier RPM |
 
-LangChain provider classes read their keys from environment variables. pydantic-settings reads `.env` but doesn't change `os.environ`, so `Settings.export_provider_env()` copies the keys that are set into `os.environ` (without overwriting existing values). It runs once at CLI start-up. LangSmith variables aren't modeled as fields, since LangChain reads them from the environment. The same start-up step copies any `LANGSMITH_*` entries from `.env` into `os.environ` (via `dotenv_values`, which pydantic-settings already depends on), so they work from `.env` too.
+LangChain provider classes read their keys from environment variables. pydantic-settings reads `.env` but doesn't change `os.environ`, so `Settings.export_provider_env(env_file=".env") -> list[str]` copies the keys that are set (`GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OLLAMA_BASE_URL`) into `os.environ` (without overwriting existing values) and returns the names it exported. It runs once at CLI start-up. LangSmith variables aren't modeled as fields, since LangChain reads them from the environment. The same start-up step copies any `LANGSMITH_*` entries from `.env` into `os.environ` (via `dotenv_values`, which pydantic-settings already depends on), so they work from `.env` too.
 
 `.env.example`:
 

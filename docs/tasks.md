@@ -24,15 +24,15 @@ How to use this file:
 - **Tests:** `test_smoke.py`: package imports; Typer `CliRunner` runs `--help` with exit code 0.
 - **Commit:** `build: add dependencies, emporio CLI entry point and test config`
 
-### [ ] T02 — Settings and `.env.example`
+### [x] T02 — Settings and `.env.example`
 
 - **Goal:** All configuration through pydantic-settings (design §3).
 - **Files:** `src/.../config.py`, `.env.example`, `tests/unit/test_config.py`
 - **FRs:** — (NFR-05, NFR-07, A-02)
 - **Acceptance criteria:**
-  - [ ] `Settings` has every field in design §3 with the listed defaults; API keys are `SecretStr | None`; `store_today: date | None`.
-  - [ ] `Settings.export_provider_env()` copies set keys and `LANGSMITH_*` entries from `.env` into `os.environ` without overwriting existing values.
-  - [ ] `.env.example` matches design §3 verbatim; no real key anywhere.
+  - [x] `Settings` has every field in design §3 with the listed defaults; API keys are `SecretStr | None`; `store_today: date | None`.
+  - [x] `Settings.export_provider_env()` copies set keys and `LANGSMITH_*` entries from `.env` into `os.environ` without overwriting existing values.
+  - [x] `.env.example` matches design §3 verbatim; no real key anywhere.
 - **Tests:** defaults; `.env` parsing from a temp file; `STORE_TODAY` parsed as `date`; `export_provider_env` doesn't overwrite an existing env var.
 - **Commit:** `feat: add settings and env example`
 
