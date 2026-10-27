@@ -157,15 +157,15 @@ How to use this file:
 - **Tests:** order 7 + `leticia.rocha@jmail.com` → verified, first name "Letícia"; phone `67997890123` verifies; wrong email for 7 equals result for order 9999 (`==` on dumps); email right + phone wrong → not verified; order 3 total 3450 (not recomputed); order 17 notes present; order 8 `is_late` with `STORE_TODAY=2026-03-23`; serializing every verified order contains no customer email or phone; missing contact → validation error.
 - **Commit:** `feat: add verified get_order_status tool`
 
-### [ ] T13 — Store facts and `get_store_info`
+### [x] T13 — Store facts and `get_store_info`
 
 - **Goal:** Canonical store facts, hours, `open_now` and `next_opening` (design §6.6).
 - **Files:** `src/.../domain/store.py`, `src/.../tools/schemas.py`, `src/.../tools/store.py`, `tests/unit/test_store.py`, `tests/unit/test_tools_store.py`
 - **FRs:** FR-05, FR-13 (A-03, A-04, A-06)
 - **Acceptance criteria:**
-  - [ ] Store constants per A-06; hours Mon–Fri 09–18, Sat 09–13, Sun closed; `open ≤ t < close`.
-  - [ ] `next_opening` scans up to 7 days; tool uses the clock only, never `STORE_TODAY`.
-  - [ ] `holiday_note`, `hours_note`, `source_sections` filled.
+  - [x] Store constants per A-06; hours Mon–Fri 09–18, Sat 09–13, Sun closed; `open ≤ t < close`.
+  - [x] `next_opening` scans up to 7 days; tool uses the clock only, never `STORE_TODAY`.
+  - [x] `holiday_note`, `hours_note`, `source_sections` filled.
 - **Tests:** FixedClock Saturday 12:59 open with `closes_at` 13:00; Saturday 13:00 closed; Sunday closed → next Monday 09:00; weekday 08:59 closed → same day 09:00; `STORE_TODAY` set doesn't change `open_now`.
 - **Commit:** `feat: add store facts and get_store_info tool`
 

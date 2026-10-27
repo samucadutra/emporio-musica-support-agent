@@ -3,7 +3,7 @@
 Field descriptions on Input models become the JSON schema the model sees.
 """
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Self
 
@@ -177,6 +177,29 @@ class OrderStatusResult(BaseModel):
     verified: bool
     order: VerifiedOrder | None = None
     message: str | None = None  # "not_found_or_not_verified" when verified is False
+
+
+class OpeningHours(BaseModel):
+    days: str  # "Segunda a Sexta-feira"
+    hours: str  # "09:00 às 18:00" | "Fechado"
+
+
+class StoreInfo(BaseModel):
+    name: str
+    address: str
+    phone: str
+    whatsapp: str
+    email: str
+    hours: list[OpeningHours]
+    hours_note: str  # extended hours on special dates (§2)
+    holiday_note: str
+    timezone: str  # "America/Campo_Grande"
+    local_datetime: datetime  # real clock, tz-aware (A-03)
+    weekday: str  # "sábado"
+    open_now: bool
+    next_opening: datetime | None  # when closed
+    closes_at: datetime | None  # when open
+    source_sections: list[str]  # ["1.2", "2", "7"]
 
 
 class CategorySummary(BaseModel):

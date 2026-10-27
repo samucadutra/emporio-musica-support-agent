@@ -650,6 +650,13 @@ Docstring:
 
 Hours: Mon–Fri 09:00–18:00, Sat 09:00–13:00, Sun closed. Open means `open ≤ t < close` (Saturday 12:59 open, 13:00 closed). `next_opening` scans forward up to 7 days. It always uses the real clock (or an injected `FixedClock` in tests), never `STORE_TODAY` (A-03).
 
+`domain/store.py` holds the canonical facts:
+- Constants: `STORE_NAME`, `ADDRESS`, `PHONE`, `WHATSAPP`, `EMAIL`, `OPENING_HOURS`, `HOURS_TABLE`, `SOURCE_SECTIONS`.
+- `HOURS_NOTE`: "Em datas especiais (Black Friday, Aniversário da Loja, Natal), o horário pode ser estendido; alterações são avisadas nas redes sociais e no WhatsApp."
+- `HOLIDAY_NOTE`.
+
+It also holds pure functions on a tz-aware `datetime`: `is_open(at)`, `closes_at(at)` and `next_opening(at)`, plus `weekday_pt(day)`, which the system prompt (T23) re-uses. They read the time in `at`'s own zone, so callers pass `clock.now(ZoneInfo(settings.store_timezone))`. `privacy.py` keeps its own normalized copy of the store email and phone digits (§6.7). A test checks that it matches these constants and that `mask_pii` leaves every store contact unchanged.
+
 ### 6.7 `request_human_handoff` (FR-13)
 
 ```python
