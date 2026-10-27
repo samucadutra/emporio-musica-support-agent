@@ -163,6 +163,9 @@ EARS keywords: WHEN (event), WHILE (state), IF … THEN (unwanted behaviour), WH
 - WHEN the user runs the chat command, THE system SHALL start an interactive Rich chat in the terminal.
 - WHERE the `--show-tools` flag is set, THE system SHALL display each tool call with its arguments (PII masked) and a short result summary.
 - WHEN the user runs the ingest command, THE system SHALL (re)build the policy vector store idempotently.
+- WHEN the user runs the eval command, THE system SHALL run the agent eval cases and write a pass/fail and latency report.
+- WHEN the user runs the export command (or `/export` in a chat), THE system SHALL write the session as a Markdown transcript, with PII masked in the tool trace.
+- WHEN the user runs the sessions command, THE system SHALL list the saved sessions.
 
 ## 7. Tool catalog (conceptual)
 
@@ -187,7 +190,7 @@ Exact signatures and Pydantic models go in `docs/design.md`. All tools are pure 
 | NFR-01 | Grounding | Every product, price, stock, promotion, order, date, contact and rule in a reply comes from a tool result in the same conversation. The only exception is the fixed scope rule in the system prompt (instruments only, §1, §7.1). Checked by the eval's must-include and must-not-include facts. |
 | NFR-02 | Privacy (LGPD, §9) | The model never sees customer lists, only the verified order's fields and the customer's first name. Logs and the `--show-tools` trace mask emails and phones. The handoff log has no raw contact data. |
 | NFR-03 | Latency | Target p50 ≤ 6 s and p95 ≤ 15 s per reply with Gemini Flash. Measured in the eval run and reported, not enforced. In the spirit of the §7.1 5-minute goal, it is far below it. |
-| NFR-04 | Cost | Runs on the Gemini free tier; one full eval run fits in the free quota. Embeddings run locally or on the free tier (choice in the design doc). |
+| NFR-04 | Cost | Runs on the Gemini free tier; one full eval run fits in the free quota. Embeddings run locally (fastembed, multilingual MiniLM; see `design.md` §4), so they need no key or quota. |
 | NFR-05 | Provider-agnostic | The model is a `provider:model` string in `.env` (LangChain `init_chat_model`). Switching to OpenAI, Anthropic or Ollama only needs env changes. |
 | NFR-06 | Reproducibility | From a fresh clone: `uv sync`, copy `.env.example` to `.env` and add a key, run the ingest command, run the chat command. Deterministic dates via `STORE_TODAY`. |
 | NFR-07 | Configuration | pydantic-settings reading `.env`: model, API keys, `STORE_TODAY`, data dir, vector store dir, SQLite path, log level, optional LangSmith. No hardcoded keys. |
@@ -239,7 +242,7 @@ Cleaning happens in code at load time; `data/` is never modified. The full ratio
 **How to run:**
 - `uv run pytest` runs unit tests, plus LLM tests when a key is set.
 - `uv run pytest -m llm` runs only the agent eval.
-- A report lists pass/fail per case and latency (NFR-03).
+- `uv run emporio eval` runs the same cases and writes a report listing pass/fail per case and latency (NFR-03).
 - Checks are deterministic: tool-call names and substring or regex facts. No LLM-as-judge in the base version.
 
 ## 11. Deliverables mapping
