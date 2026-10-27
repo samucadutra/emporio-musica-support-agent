@@ -152,3 +152,48 @@ def test_order_and_customer_getters(repo: Repository) -> None:
     assert repo.get_order(9999) is None
     assert repo.get_order_items(9999) == []
     assert repo.get_customer(9999) is None
+
+
+def alternative_ids(repo: Repository, product_id: int, n: int = 3) -> list[int]:
+    product = repo.get_product(product_id)
+    assert product is not None
+    return ids(repo.alternatives_for(product, n))
+
+
+def test_alternatives_prefer_same_type(repo: Repository) -> None:
+    # 113 Shelby SN-7C 7 Cordas Nylon: other 7-string guitars before cheaper look-alikes.
+    assert alternative_ids(repo, 113) == [110, 112, 84]
+
+
+def test_alternatives_for_out_of_stock_dreadnought(repo: Repository) -> None:
+    assert alternative_ids(repo, 96)[0] == 91
+
+
+def test_alternatives_match_cedar_in_names(repo: Repository) -> None:
+    assert alternative_ids(repo, 130)[:2] == [129, 126]
+
+
+def test_alternatives_filled_from_outside_price_band(repo: Repository) -> None:
+    # 136 costs R$ 441; no available bass is within ±60%, so the closest prices fill in.
+    bass = repo.get_product(136)
+    assert bass is not None
+    result = repo.alternatives_for(bass)
+
+    assert len(result) == 3
+    gaps = [abs(p.price_brl - bass.price_brl) for p in result]
+    assert gaps == sorted(gaps)
+
+
+def test_alternatives_respect_n(repo: Repository) -> None:
+    assert alternative_ids(repo, 113, n=1) == [110]
+    assert alternative_ids(repo, 113, n=0) == []
+
+
+def test_alternatives_are_available_same_category_and_never_self(repo: Repository) -> None:
+    for product in repo.search_products(only_available=False):
+        result = repo.alternatives_for(product)
+
+        assert len(result) <= 3
+        assert product.product_id not in ids(result)
+        assert all(p.availability == "disponível" for p in result)
+        assert all(p.category_id == product.category_id for p in result)

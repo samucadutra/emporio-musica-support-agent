@@ -98,14 +98,14 @@ How to use this file:
 - **Tests:** 95: no current promotion, PIX 2089.05, 12x 183.25, inactive "Oferta Especial (12%)" listed; 121: final 439.20, no PIX; 81: max 6x of 99.98, 7x not allowed; at most one current promotion per product across the catalogue; a promotion on an out-of-stock product is not current (synthetic product).
 - **Commit:** `feat: add pricing rules for promotions, PIX and installments`
 
-### [ ] T08 — Alternatives for unavailable products
+### [x] T08 — Alternatives for unavailable products
 
 - **Goal:** `Repository.alternatives_for` with feature-weighted ranking (design §5.4).
 - **Files:** `src/.../data/repository.py`, `tests/unit/test_repository.py`
 - **FRs:** FR-03
 - **Acceptance criteria:**
-  - [ ] Same category, `disponível`, within ±60% price; ranked by `FEATURE_WEIGHTS` score then |price diff|; filled from outside the band if fewer than n.
-  - [ ] Never returns the product itself or an unavailable product.
+  - [x] Same category, `disponível`, within ±60% price; ranked by `FEATURE_WEIGHTS` score then |price diff|; filled from outside the band if fewer than n.
+  - [x] Never returns the product itself or an unavailable product.
 - **Tests:** 113 → [110, 112, …]; 96 → starts with 91; result length ≤ 3; all results `disponível`.
 - **Commit:** `feat: suggest alternatives for unavailable products`
 

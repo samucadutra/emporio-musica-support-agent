@@ -58,6 +58,27 @@ STOP_WORDS: frozenset[str] = frozenset({"de", "da", "do", "para", "com", "e", "a
 MAX_NAME_CANDIDATES = 5
 FUZZY_CUTOFF = 0.6
 
+# Feature words in folded product names, weighted for "similar product" ranking (design §5.4).
+# Names say "Cedar"; "cedro" only appears in descriptions, so both are listed.
+FEATURE_WEIGHTS: dict[str, int] = {
+    "7 cordas": 2,
+    "dreadnought": 2,
+    "folk": 2,
+    "jumbo": 2,
+    "classico": 2,
+    "concert": 2,
+    "soprano": 2,
+    "tenor": 2,
+    "baritono": 2,
+    "nylon": 1,
+    "aco": 1,
+    "eletrico": 1,
+    "cedro": 1,
+    "cedar": 1,
+    "mogno": 1,
+}
+PRICE_BAND = Decimal("0.6")  # alternatives within ±60% of the product's list price come first
+
 # "ate 1000", "ate r$ 1.000,00", "ate r$1000 reais" in folded text.
 _PRICE_CAP_RE = re.compile(
     r"\bate\s+(?:r\$\s*)?(?P<int>\d{1,3}(?:\.\d{3})+|\d+)(?:,(?P<cents>\d{1,2}))?(?:\s*reais)?"
@@ -85,6 +106,12 @@ def _tokens(folded: str) -> list[str]:
 
 def _compact(folded: str) -> str:
     return folded.replace(" ", "")
+
+
+def _features(folded_name: str) -> frozenset[str]:
+    """Feature words present as whole words, so "aco" never matches "acustica"."""
+    padded = f" {folded_name} "
+    return frozenset(word for word in FEATURE_WEIGHTS if f" {word} " in padded)
 
 
 def parse_query(query: str) -> ParsedQuery:
@@ -147,6 +174,7 @@ class Repository:
 
         self._folded_names = {p.product_id: fold(p.name) for p in data.products}
         self._compact_names = {pid: _compact(n) for pid, n in self._folded_names.items()}
+        self._features = {pid: _features(n) for pid, n in self._folded_names.items()}
         self._search_text: dict[int, str] = {}
         for p in data.products:
             category = self._categories.get(p.category_id)
@@ -191,6 +219,32 @@ class Repository:
         """Ended promotions (`is_active == 0`). An active promotion on an unavailable
         product is on hold, not ended, so it isn't listed here."""
         return [p for p in self._promotions.get(product_id, []) if not p.is_active]
+
+    def alternatives_for(self, product: Product, n: int = 3) -> list[Product]:
+        """Up to `n` available products in the same category, most similar first.
+
+        Ranked by shared feature words, then by price difference. Products within
+        ±60% of the price come first; the list is filled from outside that band
+        only when the band has fewer than `n`.
+        """
+        features = self._features[product.product_id]
+
+        def rank(other: Product) -> tuple[int, Decimal, int]:
+            score = sum(FEATURE_WEIGHTS[w] for w in features & self._features[other.product_id])
+            return -score, abs(other.price_brl - product.price_brl), other.product_id
+
+        pool = [
+            p
+            for p in self._products.values()
+            if p.category_id == product.category_id
+            and p.product_id != product.product_id
+            and p.availability == "disponível"
+        ]
+        low = product.price_brl * (1 - PRICE_BAND)
+        high = product.price_brl * (1 + PRICE_BAND)
+        in_band = sorted((p for p in pool if low <= p.price_brl <= high), key=rank)
+        outside = sorted((p for p in pool if not low <= p.price_brl <= high), key=rank)
+        return (in_band + outside)[:n]
 
     def get_order(self, order_id: int) -> Order | None:
         return self._orders.get(order_id)
