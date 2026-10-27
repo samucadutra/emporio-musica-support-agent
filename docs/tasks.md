@@ -192,13 +192,13 @@ How to use this file:
 - **Tests:** no "Página N" or header lines left; accented email gone, canonical email present; every canonical store fact from `domain/store.py` is in the text; A-21 numbers (7/30/90 dias, R$ 50/80/100, 12x, R$ 500, R$ 35, 5%) present; "Sábado | 09:00 às 13:00" row readable.
 - **Commit:** `feat: extract clean text from the policy PDF`
 
-### [ ] T16 — Start-up data validation
+### [x] T16 — Start-up data validation
 
 - **Goal:** Fail loudly if the data or policy changes shape (design §5.5).
 - **Files:** `src/.../data/validation.py`, `tests/unit/test_validation.py`
 - **FRs:** — (PRD §9, NFR-06)
 - **Acceptance criteria:**
-  - [ ] `validate(repo, policy_text)` checks FKs, ≤1 current promotion per product, enum values, store facts and A-21 numbers; raises `DataValidationError` listing every failure.
+  - [x] `validate(repo, policy_text)` checks FKs, ≤1 current promotion per product, enum values, store facts and A-21 numbers; raises `DataValidationError` listing every failure.
 - **Tests:** real data passes; a mutated in-memory repo (orphan FK, two current promotions) and a policy text missing the address each produce a listed failure; multiple failures reported together.
 - **Commit:** `feat: validate data and policy facts at start-up`
 

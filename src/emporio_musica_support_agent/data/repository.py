@@ -156,6 +156,8 @@ class Repository:
     """Read-only indexes over the store data, built once at start-up (A-17)."""
 
     def __init__(self, data: StoreData) -> None:
+        # The raw rows, for start-up validation only; tools use the query methods.
+        self.data = data
         self._categories = {c.category_id: c for c in data.categories}
         self._products = {p.product_id: p for p in data.products}
         self._orders = {o.order_id: o for o in data.orders}

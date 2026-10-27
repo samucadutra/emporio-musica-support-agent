@@ -337,15 +337,16 @@ class Repository:
 - `current_promotion` returns the product's `is_active` promotion only while the product is `disponível` (A-05). `inactive_promotions` returns the ended ones (`is_active == 0`). An active promotion on an unavailable product is in neither list: it's on hold, not ended, so the agent never calls it expired.
 - `brand` matches when the folded brand is a substring of the folded name. There's no brand column, and names like "Bateria Pearl…" don't start with the brand.
 - `get_customer` is only called inside `tools/orders.py`. No tool output contains a `Customer`.
+- `Repository.data` holds the loaded `StoreData` (frozen tuples). Only start-up validation reads it; tools use the query methods.
 
 ### 5.5 Start-up validation
 
-`validation.validate(repo, policy_text) -> None` raises `DataValidationError` listing every failure:
+`validation.validate(repo, policy_text) -> None` raises `DataValidationError(failures)`. Its message starts "data validation failed (N problems):" and lists every failure on its own `- ` line. The checks:
 - Every FK resolves (inventory §3).
 - At most one current promotion per product (D2).
 - Status and payment values are in the known enums.
 - Each canonical store fact from `domain/store.py` (address, phone, WhatsApp, email after the D3 fix, hours) appears in the extracted policy text.
-- The policy numbers encoded in code (7, 30, 90 days; R$ 50 / 80 / 100 tiers; 12x; R$ 500 / R$ 35; 5% PIX) appear in the policy text (A-21).
+- The policy numbers encoded in code (7, 30, 90 days; R$ 50 / 80 / 100 tiers; 12x; 5% PIX) appear in the policy text (A-21). They're built from the constants in `domain/windows.py` and `domain/pricing.py`, and checked on whitespace-flattened text. The metro shipping amounts (R$ 500 / R$ 35) aren't computed anywhere in code yet, so they're checked as `POLICY_LITERALS`.
 
 `chat` and `eval` run it at start-up and stop with a readable error if it fails.
 
