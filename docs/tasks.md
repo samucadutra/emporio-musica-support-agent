@@ -181,14 +181,14 @@ How to use this file:
 - **Tests:** ticket format; JSONL line fields; email/phone in summary are masked in the file; complaint note present, other reasons `None`; closed-store clock → `team_available_now=False` with `next_opening`; collision retry (patched token).
 - **Commit:** `feat: add human handoff tool and log`
 
-### [ ] T15 — Policy PDF extraction and fact checks
+### [x] T15 — Policy PDF extraction and fact checks
 
 - **Goal:** Clean policy text from the PDF (design §7 extraction) and prove the coded facts match it.
 - **Files:** `src/.../rag/__init__.py`, `src/.../rag/extract.py`, `tests/unit/test_policy_facts.py`
 - **FRs:** FR-06 (A-21)
 - **Acceptance criteria:**
-  - [ ] Layout-mode extraction; headers, footers and trailer stripped; column runs → ` | `; bullets → `- `; page start offsets recorded.
-  - [ ] D3 email fix applied.
+  - [x] Layout-mode extraction; headers, footers and trailer stripped; column runs → ` | `; bullets → `- `; page start offsets recorded.
+  - [x] D3 email fix applied.
 - **Tests:** no "Página N" or header lines left; accented email gone, canonical email present; every canonical store fact from `domain/store.py` is in the text; A-21 numbers (7/30/90 dias, R$ 50/80/100, 12x, R$ 500, R$ 35, 5%) present; "Sábado | 09:00 às 13:00" row readable.
 - **Commit:** `feat: extract clean text from the policy PDF`
 

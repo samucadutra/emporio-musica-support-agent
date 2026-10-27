@@ -702,9 +702,29 @@ Docstring:
 **Extraction (`rag/extract.py`).**
 1. `PdfReader(path).pages[i].extract_text(extraction_mode="layout")` for each page. The default mode emits one word per line and is unusable (inventory §5).
 2. Strip the per-page header (`^Empório da Música\s+Manual de Políticas e Procedimentos$`), footer (`^\s*Página \d+$`) and the closing trailer (`Empório da Música — Sua música começa aqui.` / `Última atualização…`). The cover page is kept.
-3. Collapse runs of 2+ spaces inside a line to a column separator ` | `. Tables then read as rows ("Sábado | 09:00 às 13:00"). Runs of blank lines collapse to one. Bullet glyphs `•` become `- `.
-4. Join the pages into one text, recording each page's start offset so a chunk can report its first page. Sections cross page breaks (5.2, 7.2, 9).
+3. Clean each line (`clean_line`):
+   - Leading indentation is kept, because T17 tells headings (column 0) from §7.2's indented steps.
+   - Bullet glyphs `•` become `- `.
+   - Numbered-list markers (`N.` plus spaces) become `N. `. Otherwise "1.   Saudação" would turn into "1. | Saudação".
+   - Runs of 2+ spaces inside the line become the column separator ` | `. Table rows then read as rows ("Sábado | 09:00 às 13:00").
+   - A line that contains ` | ` is moved flush left.
+   - Trailing spaces are removed.
+
+   Runs of blank lines collapse to one. The text is NFC-normalized first.
+4. Join the pages into one text with blank lines between them, recording each page's start offset so a chunk can report its first page. Sections cross page breaks (5.2, 7.2, 9).
 5. D3 fix: replace `contato@empóriodamusica.com.br` with `contato@emporiodamusica.com.br`.
+
+```python
+@dataclass(frozen=True)
+class PolicyText:
+    text: str
+    page_starts: tuple[int, ...]           # offset where each page starts in `text`
+    def page_at(self, offset: int) -> int: ...  # 1-based page
+
+def extract_policy(pdf_path: Path) -> PolicyText: ...   # path from data/loader.policy_path
+```
+
+Some numbers wrap across lines in the extracted text ("90\n(noventa) dias", "R$\n50,00"). Fact checks (`test_policy_facts.py`, T16 validation) therefore compare against a whitespace-flattened copy.
 
 **Chunking (`rag/chunking.py`).**
 - Headings are found by matching an explicit `POLICY_OUTLINE` constant: the 10 top-level and 18 numbered headings from inventory §5, e.g. `("4.1", "Direito de Arrependimento (Compras Online)")`. Each must match a line that starts at column 0. A generic `^\d+\.` regex would also match the numbered steps in §7.2 ("1. Saudação"), which are indented. If any outline heading is missing, ingestion fails, so a new PDF version can't be silently mis-chunked.
