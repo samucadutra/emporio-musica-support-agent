@@ -1,10 +1,10 @@
 """Contact matching and PII masking."""
 
-import csv
 from pathlib import Path
 
 import pytest
 
+from emporio_musica_support_agent.data.loader import read_rows
 from emporio_musica_support_agent.privacy import (
     emails_match,
     mask_email,
@@ -12,8 +12,6 @@ from emporio_musica_support_agent.privacy import (
     mask_pii,
     phones_match,
 )
-
-CUSTOMERS_CSV = Path(__file__).parents[2] / "data" / "desafio_tecnico_ai_eng - customers.csv"
 
 # Customer 14, who placed order 7.
 STORED_EMAIL = "leticia.rocha@jmail.com"
@@ -89,9 +87,8 @@ def test_mask_pii_leaves_text_without_pii_unchanged() -> None:
     assert mask_pii(text) == text
 
 
-def test_every_customer_contact_is_masked() -> None:
-    with CUSTOMERS_CSV.open(encoding="utf-8", newline="") as f:
-        customers = list(csv.DictReader(f))
+def test_every_customer_contact_is_masked(data_dir: Path) -> None:
+    customers = read_rows(data_dir, "customers")
 
     assert len(customers) == 50
     for customer in customers:

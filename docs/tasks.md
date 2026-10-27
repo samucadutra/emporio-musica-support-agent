@@ -60,17 +60,17 @@ How to use this file:
 - **Tests:** phone variants (`67997890123`, `+55 (67) 99789-0123`, `067...`) match; 9-digit number without DDD doesn't; email case/space variants; store WhatsApp/phone left unmasked; mixed text masked.
 - **Commit:** `feat: add contact matching and PII masking`
 
-### [ ] T05 — Data models, loader and cleaning
+### [x] T05 — Data models, loader and cleaning
 
 - **Goal:** Load the six CSVs into validated Pydantic models with all cleaning rules applied in code (design §5.1–5.2).
 - **Files:** `src/.../data/models.py`, `src/.../data/loader.py`, `src/.../data/cleaning.py`, `tests/conftest.py`, `tests/unit/test_cleaning.py`
 - **FRs:** FR-03 (availability label), FR-09 (unreliable descriptions)
 - **Acceptance criteria:**
-  - [ ] `TABLE_FILES` / `POLICY_FILE` explicit mapping; `Zone.Identifier` files never read; missing file raises `DataFileNotFoundError(table, path)`.
-  - [ ] `""` → `None`; ISO dates parsed; `specs` parsed to dict; `payment_method` split into method + installments with pt-BR label; products sorted by ID.
-  - [ ] `UNRELIABLE_DESCRIPTION_IDS = frozenset(range(135, 145))` with a comment citing issue #4 / D4; `Product.description_reliable` derived.
-  - [ ] Availability label per design §5.2 table.
-  - [ ] `data/` untouched (stdlib `csv`, no pandas).
+  - [x] `TABLE_FILES` / `POLICY_FILE` explicit mapping; `Zone.Identifier` files never read; missing file raises `DataFileNotFoundError(table, path)`.
+  - [x] `""` → `None`; ISO dates parsed; `specs` parsed to dict; `payment_method` split into method + installments with pt-BR label; products sorted by ID.
+  - [x] `UNRELIABLE_DESCRIPTION_IDS = frozenset(range(135, 145))` with a comment citing issue #4 / D4; `Product.description_reliable` derived.
+  - [x] Availability label per design §5.2 table.
+  - [x] `data/` untouched (stdlib `csv`, no pandas).
 - **Tests:** row counts (9/65/25/20/22/50); 145 after 144; `credit_12x` → (`credit`, 12, "cartão de crédito em 12x"); order 1 tracking present, order 13 tracking `None`; labels for 96, 113, 130, 136; 135 unreliable, 134 reliable; missing data dir raises `DataFileNotFoundError`. Session-scoped `data_dir` fixture in `conftest.py`.
 - **Commit:** `feat: load and clean store CSV data`
 

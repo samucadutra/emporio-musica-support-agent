@@ -250,7 +250,7 @@ TABLE_FILES: dict[str, str] = {
 POLICY_FILE = "políticas_da_loja.pdf"
 ```
 
-Files are read with stdlib `csv.DictReader` (`encoding="utf-8"`, `newline=""`) and validated into Pydantic models in `data/models.py`. Pandas isn't needed for ~200 rows and stays a dev dependency. `Repository.load(data_dir)` runs once at start-up and is immutable afterwards (A-17). Each process loads the data once (~10 ms).
+Files are read with stdlib `csv.DictReader` (`encoding="utf-8"`, `newline=""`) and validated into Pydantic models in `data/models.py`. Pandas isn't needed for ~200 rows and stays a dev dependency. `loader.load_store_data(data_dir) -> StoreData` reads the tables in `TABLE_FILES` order and returns frozen tuples of models, with products sorted by ID. A missing CSV or policy file raises `DataFileNotFoundError(table, path)`, where `table` is `"policy"` for the PDF. `Repository.load(data_dir)` builds on `load_store_data`; it runs once at start-up and is immutable afterwards (A-17). Each process loads the data once (~10 ms).
 
 ### 5.2 Cleaning rules (in code; `data/` is never touched)
 
@@ -267,6 +267,8 @@ Files are read with stdlib `csv.DictReader` (`encoding="utf-8"`, `newline=""`) a
 | Current promotion | `is_active == 1` and product is `disponível` (A-05) | #3 |
 | Historical order data | `total_brl`, payment and installments are reported as stored and never recomputed | #5–#8 |
 | Order item names | Resolved from the product table at lookup time, whatever the product's current status | #6 |
+
+The value-level rules live in `data/cleaning.py`, which has no model imports: `empty_to_none`, `parse_specs`, `parse_payment_method`, `availability_label`, the `Availability` literal, `PAYMENT_LABELS` and `UNRELIABLE_DESCRIPTION_IDS`. `data/models.py` applies them through validators and properties: `Product.availability`, `Product.description_reliable`, and `Order.payment`, a `Payment(method, installments, label)` built next to the raw `payment_method`. `tools/schemas.py` re-uses `Availability` rather than defining it again.
 
 Money uses `Decimal` inside `domain/pricing.py`, rounded with `ROUND_HALF_UP` to 2 places. Tool outputs carry both a float (`price_brl: 2199.0`) and a pre-formatted string (`price_fmt: "R$ 2.199,00"`) made by `text.format_brl`. The model copies the string, so it never formats or rounds a number itself.
 
