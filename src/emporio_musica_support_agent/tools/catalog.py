@@ -4,11 +4,21 @@ from decimal import Decimal
 
 from emporio_musica_support_agent.data.models import Category, Product
 from emporio_musica_support_agent.data.repository import Repository, parse_query
-from emporio_musica_support_agent.domain.pricing import final_price
+from emporio_musica_support_agent.domain.pricing import (
+    final_price,
+    installment_options,
+    max_installments,
+    pix_price,
+)
 from emporio_musica_support_agent.tools.schemas import (
     CategoryListResult,
     CategorySummary,
+    InstallmentOption,
+    Installments,
     Money,
+    ProductDetails,
+    ProductDetailsInput,
+    ProductDetailsResult,
     ProductSearchResult,
     ProductSummary,
     PromotionInfo,
@@ -102,6 +112,75 @@ def search_products(repo: Repository, params: SearchProductsInput) -> ProductSea
         note=note,
         closest_matches=closest,
     )
+
+
+def _installments(final: Decimal) -> Installments:
+    options = installment_options(final)
+    best = max_installments(final)
+    return Installments(
+        max_installments=best,
+        installment_value=Money.from_decimal(options[best - 1].value),
+        options=[
+            InstallmentOption(
+                n=o.n,
+                value=Money.from_decimal(o.value),
+                allowed=o.allowed,
+                min_required=Money.from_decimal(o.minimum),
+            )
+            for o in options
+        ],
+    )
+
+
+def get_product_details(repo: Repository, params: ProductDetailsInput) -> ProductDetailsResult:
+    """Get one product's price, promotion, PIX price, installments, availability and
+    description. Use whenever the customer asks how much a product costs, whether it is in
+    stock, about installments ("parcelar em 10x"), or about a promotion on it. Quote prices from
+    the `fmt` fields exactly. If `promotion` is set, show original price, discount % and final
+    price, and do NOT offer the PIX discount on top. Otherwise also give `pix_price`. For
+    installments use `installments.max_installments` and `installment_value`. If the customer
+    asks for more installments than allowed, say the maximum. If the customer asks about a
+    promotion listed in `inactive_promotions`, say it is no longer active and give the current
+    price. If `availability` is not "disponível", say so and offer the `alternatives`. If
+    `description_reliable` is false, describe nothing beyond name, price and availability. If
+    `found` is false and `candidates` is not empty, ask which one the customer means. If both are
+    empty, say the product isn't in the catalogue.
+    """
+    if params.product_id is not None:
+        product = repo.get_product(params.product_id)
+        if product is None:
+            return ProductDetailsResult(found=False)
+    else:
+        lookup = repo.find_products_by_name(params.name or "")
+        if lookup.match is None:
+            candidates = [product_summary(repo, p) for p in lookup.candidates]
+            return ProductDetailsResult(found=False, candidates=candidates)
+        product = lookup.match
+
+    promotion = repo.current_promotion(product.product_id)
+    pix = pix_price(product.price_brl, promotion)
+    reliable = product.description_reliable
+    alternatives = []
+    if product.availability != "disponível":
+        alternatives = [product_summary(repo, p) for p in repo.alternatives_for(product)]
+
+    details = ProductDetails(
+        **product_summary(repo, product).model_dump(),
+        status=product.status,
+        in_stock=product.stock_quantity > 0,
+        pix_price=Money.from_decimal(pix) if pix is not None else None,
+        installments=_installments(final_price(product.price_brl, promotion)),
+        inactive_promotions=[
+            f"{p.description} ({p.discount_percent}%)"
+            for p in repo.inactive_promotions(product.product_id)
+        ],
+        description_reliable=reliable,
+        # Descriptions and specs of 135–144 contradict their names (A-07).
+        description=product.description if reliable else None,
+        specs=dict(product.specs) if reliable else None,
+        alternatives=alternatives,
+    )
+    return ProductDetailsResult(found=True, product=details)
 
 
 def list_categories(repo: Repository) -> CategoryListResult:

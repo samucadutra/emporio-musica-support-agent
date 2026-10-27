@@ -122,14 +122,14 @@ How to use this file:
 - **Tests:** violões ≤ 1000 → 12 IDs in order, none of 96/113; `only_available=False` includes 96 and 113; `limit=5` → `truncated=True`, `total=12`; "saxofone" → total 0 with "category has no products"; unknown product name → `closest_matches`; promotion fields present for 121; `max_price < min_price` raises validation error; categories 6–8 count 0.
 - **Commit:** `feat: add search_products and list_categories tools`
 
-### [ ] T10 — Catalog tool: `get_product_details`
+### [x] T10 — Catalog tool: `get_product_details`
 
 - **Goal:** One product's commercial facts with computed prices (design §6.2).
 - **Files:** `src/.../tools/schemas.py`, `src/.../tools/catalog.py`, `tests/unit/test_tools_catalog.py`
 - **FRs:** FR-02, FR-03, FR-09
 - **Acceptance criteria:**
-  - [ ] `ProductDetailsInput` (validator: ID or name), `Installments`, `InstallmentOption`, `ProductDetails`, `ProductDetailsResult`.
-  - [ ] Description and specs `None` when unreliable; alternatives only when not `disponível`; candidates on ambiguous name.
+  - [x] `ProductDetailsInput` (validator: ID or name), `Installments`, `InstallmentOption`, `ProductDetails`, `ProductDetailsResult`.
+  - [x] Description and specs `None` when unreliable; alternatives only when not `disponível`; candidates on ambiguous name.
 - **Tests:** "Takamine GD20" → 95 with `pix_price.fmt == "R$ 2.089,05"`, 12x R$ 183,25, `inactive_promotions` non-empty; 121 → promotion set, `pix_price is None`; 81 → max 6x R$ 99,98; 113 → "fora de catálogo" with alternatives [110, 112, …]; 96 → "temporariamente indisponível"; 130 → "em breve"; 135 → no description/specs; "yamaha" → `found=False` with candidates; "violino stradivarius" → not found, no candidates; neither ID nor name → validation error.
 - **Commit:** `feat: add get_product_details tool`
 

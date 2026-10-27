@@ -9,6 +9,7 @@ from typing import Self
 from pydantic import BaseModel, Field, model_validator
 
 from emporio_musica_support_agent.data.cleaning import Availability
+from emporio_musica_support_agent.data.models import ProductStatus
 from emporio_musica_support_agent.text import format_brl, round_money
 
 
@@ -81,6 +82,54 @@ class ProductSearchResult(BaseModel):
     category_matched: str | None = None
     note: str | None = None
     closest_matches: list[ProductSummary] = []  # only when total == 0 and the query names a product
+
+
+class ProductDetailsInput(BaseModel):
+    product_id: int | None = Field(
+        None, description="Product ID, if known from an earlier tool result."
+    )
+    name: str | None = Field(
+        None, description="Product name as the customer wrote it, e.g. 'Takamine GD20'."
+    )
+
+    @model_validator(mode="after")
+    def check_product_given(self) -> Self:
+        if self.name is not None and not self.name.strip():
+            self.name = None
+        if self.product_id is None and self.name is None:
+            raise ValueError("give product_id or name")
+        return self
+
+
+class InstallmentOption(BaseModel):
+    n: int
+    value: Money
+    allowed: bool
+    min_required: Money  # minimum installment value for n (policy §3.1)
+
+
+class Installments(BaseModel):
+    max_installments: int  # largest n allowed by A-11
+    installment_value: Money  # value at max_installments
+    options: list[InstallmentOption]  # n = 1..12
+
+
+class ProductDetails(ProductSummary):
+    status: ProductStatus
+    in_stock: bool
+    pix_price: Money | None  # None when a promotion is current (§6.2)
+    installments: Installments  # computed on the final price
+    inactive_promotions: list[str]  # campaign names, e.g. ["Oferta Especial (12%)"]
+    description_reliable: bool
+    description: str | None  # None when not reliable (A-07)
+    specs: dict[str, str | int] | None
+    alternatives: list[ProductSummary] = []  # up to 3, only when not "disponível"
+
+
+class ProductDetailsResult(BaseModel):
+    found: bool
+    product: ProductDetails | None = None
+    candidates: list[ProductSummary] = []  # ambiguous or fuzzy name: ask which one
 
 
 class CategorySummary(BaseModel):

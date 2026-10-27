@@ -426,7 +426,14 @@ Behavior:
 class ProductDetailsInput(BaseModel):
     product_id: int | None = Field(None, description="Product ID, if known from an earlier tool result.")
     name: str | None = Field(None, description="Product name as the customer wrote it, e.g. 'Takamine GD20'.")
-    # model_validator: at least one of product_id / name
+    # model_validator: at least one of product_id / name ("give product_id or name");
+    # a blank name counts as missing
+
+class InstallmentOption(BaseModel):
+    n: int
+    value: Money                     # final / n, half-up
+    allowed: bool
+    min_required: Money              # tier minimum for n (policy §3.1)
 
 class Installments(BaseModel):
     max_installments: int            # largest n allowed by A-11
@@ -454,6 +461,8 @@ def get_product_details(repo: Repository, params: ProductDetailsInput) -> Produc
 
 Docstring:
 > Get one product's price, promotion, PIX price, installments, availability and description. Use whenever the customer asks how much a product costs, whether it is in stock, about installments ("parcelar em 10x"), or about a promotion on it. Quote prices from the `fmt` fields exactly. If `promotion` is set, show original price, discount % and final price, and do NOT offer the PIX discount on top. Otherwise also give `pix_price`. For installments use `installments.max_installments` and `installment_value`. If the customer asks for more installments than allowed, say the maximum. If the customer asks about a promotion listed in `inactive_promotions`, say it is no longer active and give the current price. If `availability` is not "disponível", say so and offer the `alternatives`. If `description_reliable` is false, describe nothing beyond name, price and availability. If `found` is false and `candidates` is not empty, ask which one the customer means. If both are empty, say the product isn't in the catalogue.
+
+Lookup: `product_id` wins when both fields are given, and an unknown ID returns `found=False` with no candidates. A name goes through `find_products_by_name` (§5.3). `inactive_promotions` entries read `"<campaign> (<percent>%)"`, e.g. "Oferta Especial (12%)".
 
 Pricing rules (`domain/pricing.py`, pure and unit-tested):
 - `final = price × (1 − d/100)`, rounded to 2 places.

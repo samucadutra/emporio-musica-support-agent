@@ -7,9 +7,16 @@ import pytest
 from pydantic import ValidationError
 
 from emporio_musica_support_agent.data.repository import Repository
-from emporio_musica_support_agent.tools.catalog import list_categories, search_products
+from emporio_musica_support_agent.tools.catalog import (
+    get_product_details,
+    list_categories,
+    search_products,
+)
 from emporio_musica_support_agent.tools.schemas import (
     Money,
+    ProductDetails,
+    ProductDetailsInput,
+    ProductDetailsResult,
     ProductSearchResult,
     SearchProductsInput,
 )
@@ -129,3 +136,108 @@ def test_json_output_omits_none(repo: Repository) -> None:
 
     assert "note" not in payload
     assert "promotion" not in payload["items"][0]
+
+
+def details(repo: Repository, **kwargs: object) -> ProductDetailsResult:
+    return get_product_details(repo, ProductDetailsInput(**kwargs))
+
+
+def found(repo: Repository, **kwargs: object) -> ProductDetails:
+    result = details(repo, **kwargs)
+    assert result.found
+    assert result.product is not None
+    return result.product
+
+
+def test_takamine_gd20_details(repo: Repository) -> None:
+    product = found(repo, name="Takamine GD20")
+
+    assert product.product_id == 95
+    assert product.promotion is None
+    assert product.pix_price is not None
+    assert product.pix_price.fmt == "R$ 2.089,05"
+    assert product.installments.max_installments == 12
+    assert product.installments.installment_value.fmt == "R$ 183,25"
+    assert product.inactive_promotions == ["Oferta Especial (12%)"]
+    assert product.alternatives == []
+
+
+def test_promotion_replaces_pix_and_drives_installments(repo: Repository) -> None:
+    product = found(repo, product_id=121)
+
+    assert product.promotion is not None
+    assert product.promotion.discount_percent == 20
+    assert product.promotion.final_price.fmt == "R$ 439,20"
+    assert product.pix_price is None
+    assert product.installments.max_installments == 5
+    assert product.installments.installment_value.fmt == "R$ 87,84"
+
+
+def test_installment_limit(repo: Repository) -> None:
+    installments = found(repo, product_id=81).installments
+    seven = installments.options[6]
+
+    assert installments.max_installments == 6
+    assert installments.installment_value.fmt == "R$ 99,98"
+    assert (seven.n, seven.allowed) == (7, False)
+    assert seven.value.fmt == "R$ 85,70"
+    assert seven.min_required.fmt == "R$ 100,00"
+
+
+def test_discontinued_gets_alternatives(repo: Repository) -> None:
+    product = found(repo, name="Shelby SN-7C")
+
+    assert product.availability == "fora de catálogo"
+    assert [a.product_id for a in product.alternatives] == [110, 112, 84]
+
+
+def test_out_of_stock_gets_alternatives(repo: Repository) -> None:
+    product = found(repo, product_id=96)
+
+    assert product.availability == "temporariamente indisponível"
+    assert product.in_stock is False
+    assert product.alternatives[0].product_id == 91
+
+
+def test_coming_soon(repo: Repository) -> None:
+    product = found(repo, product_id=130)
+
+    assert product.availability == "em breve"
+    assert product.alternatives
+
+
+def test_unreliable_description_hidden(repo: Repository) -> None:
+    unreliable = found(repo, product_id=135)
+    reliable = found(repo, product_id=134)
+
+    assert unreliable.description_reliable is False
+    assert unreliable.description is None
+    assert unreliable.specs is None
+    assert reliable.description
+    assert reliable.specs
+
+
+def test_ambiguous_name_gives_candidates(repo: Repository) -> None:
+    result = details(repo, name="yamaha")
+
+    assert result.found is False
+    assert result.product is None
+    assert len(result.candidates) >= 2
+
+
+@pytest.mark.parametrize("kwargs", [{"name": "violino stradivarius"}, {"product_id": 9999}])
+def test_not_found(repo: Repository, kwargs: dict[str, object]) -> None:
+    result = details(repo, **kwargs)
+
+    assert result.found is False
+    assert result.candidates == []
+
+
+def test_product_id_wins_over_name(repo: Repository) -> None:
+    assert found(repo, product_id=121, name="yamaha").product_id == 121
+
+
+@pytest.mark.parametrize("kwargs", [{}, {"name": "  "}])
+def test_product_details_needs_id_or_name(kwargs: dict[str, str]) -> None:
+    with pytest.raises(ValidationError, match="product_id or name"):
+        ProductDetailsInput(**kwargs)
