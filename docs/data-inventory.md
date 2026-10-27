@@ -111,9 +111,9 @@ Severity reflects impact on the agent: **High** means the agent could state some
 | # | Issue | Severity | Proposed cleaning / handling rule (in code, never in `data/`) |
 |---|---|---|---|
 | 1 | No actual delivery date. The return window (§4.1) and the legal warranty (§8.1) count from **receipt**. | High | Treat `estimated_delivery` as the receipt date for `delivered` orders, and say so in the README. For `shipped` orders the receipt date is unknown, so the window hasn't started. |
-| 2 | Today (2026-10-27) every order is 219–377 days old, so **none is inside any return or warranty window**, and order 8 is "shipped" with an estimated delivery 8 months ago. | High | Make the reference date configurable (e.g. `STORE_TODAY` in settings, defaulting to the real date) so that demos and tests are deterministic. See the Open questions section below. |
+| 2 | Today (2026-10-27) every order is 219–377 days old, so **none is inside any return or warranty window**, and order 8 is "shipped" with an estimated delivery 8 months ago. | High | Make the reference date configurable (e.g. `STORE_TODAY` in settings, defaulting to the real date) so that demos and tests are deterministic. See decision D1 in the Resolved decisions section. |
 | 3 | Promotions have no dates, only `is_active`. | High | A promotion is current only when `is_active == 1` **and** the product is `active` with stock > 0 (policy §6.2: promotions depend on stock). Assert at most one current promotion per product. |
-| 4 | Products 135–144 contradict themselves: the brand in the name doesn't match the description. 135 "Music Man Bass 1X" is described as a Fender Jazz Bass. 136 "Ibanez Bass 2X" is described as a Precision bass. 137 "Yamaha" is described as an Ibanez with 5 strings, but its specs say `strings: 4`. 139 "Yamaha" is described as a Pearl Export, and 140 "Pearl" as a Tama. 142 "Korg" is described as a Roland with 88 keys, but its specs say 61. 144 "Roland" is described as a Yamaha arranger. Their names are generic ("Kit 1", "Synth 2 Pro") and their prices odd (8732, 11445, 19567). | High | Use `name`, `price_brl`, `stock_quantity` and `status` as the source of truth. Mark these IDs `description_reliable = False` and never quote their description or specs to customers; give only the name and price. To be confirmed (see Open questions). |
+| 4 | Products 135–144 contradict themselves: the brand in the name doesn't match the description. 135 "Music Man Bass 1X" is described as a Fender Jazz Bass. 136 "Ibanez Bass 2X" is described as a Precision bass. 137 "Yamaha" is described as an Ibanez with 5 strings, but its specs say `strings: 4`. 139 "Yamaha" is described as a Pearl Export, and 140 "Pearl" as a Tama. 142 "Korg" is described as a Roland with 88 keys, but its specs say 61. 144 "Roland" is described as a Yamaha arranger. Their names are generic ("Kit 1", "Synth 2 Pro") and their prices odd (8732, 11445, 19567). | High | Use `name`, `price_brl`, `stock_quantity` and `status` as the source of truth. Mark these IDs `description_reliable = False` and never quote their description or specs to customers; give only the name and price. Confirmed in decision D4. |
 | 5 | Order 3: `total_brl` 3450 ≠ 2 × 1749 = 3498. Order 20: 1400 ≠ 799 + 689 = 1488. | Medium | `total_brl` is the amount actually charged and is reported as-is. Never recompute an order total from current prices, and never present a current price as the price paid. |
 | 6 | Orders 3 (delivered) and 14 contain product 130, which is `coming_soon`. | Medium | Treat order data as historical and don't validate it against current status. For catalogue answers, show `coming_soon` as "em breve", not available to buy. |
 | 7 | PIX orders (1, 5, 10, 13, 17) were charged the full list price, although the policy gives 5% off with PIX. | Low | Only for the price quoted to customers: compute the PIX price as `price × 0.95` when there's no active promotion. Don't "fix" historical totals. |
@@ -134,7 +134,7 @@ Severity reflects impact on the agent: **High** means the agent could state some
 `políticas_da_loja.pdf`: "Manual de Políticas e Procedimentos – Atendimento ao Cliente", Versão 2.1, Junho de 2025. The metadata title is `políticas_da_loja.docx`, exported from Google Docs.
 
 - **Extraction:** it's a text PDF with no images to OCR and no `U+FFFD` replacement characters. **pypdf's default `extract_text()` is unusable**, though: it emits one word per line, with `"\n \n"` between words. `extract_text(extraction_mode="layout")` gives clean, well-ordered text with headings, bullets and tables preserved as aligned columns. Every page has the header "Empório da Música Manual de Políticas e Procedimentos" and the footer "Página N"; strip both before chunking.
-- **Size:** 8 pages, about 1,750 words and about 11.8 K characters after collapsing whitespace, so **roughly 3 K tokens**. Small enough to fit whole in a prompt, but splitting it by heading for RAG is still cleaner.
+- **Size:** 8 pages, about 1,750 words and about 11.8 K characters after collapsing whitespace, so **roughly 3 K tokens**. Small enough to fit whole in a prompt; the choice to keep RAG anyway is recorded in decision D10.
 
 ### Outline
 ```
@@ -274,14 +274,73 @@ Every return-window figure below uses `estimated_delivery` as the receipt date.
 
 **Empty category:** "Tem saxofone?" Category 6 exists but has no products, so say nothing is available and don't invent any.
 
-## 9. Open questions
+## 9. Resolved decisions
 
-1. **Return-window reference date.** Should `estimated_delivery` count as the receipt date? And should "today" be the real date (no order inside any window) or a configurable date (e.g. 2026-02-20) so one example falls inside the window?
-2. **Promotions without dates.** Is `is_active` the only source of truth? Should the current promotion also require the product to be active and in stock?
-3. **Canonical contacts.** Which email (with or without the accent) and which WhatsApp number ((67) 3341-4444 or (67) 3321-4500) should the agent give?
-4. **Products 135–144 with contradictory descriptions.** Keep them showing only name and price, flag them, or leave them out of the catalogue?
-5. **Product status display.** Should `coming_soon` and `discontinued` products appear in search results (labelled), or only when asked by name?
-6. **Customer verification.** Is `order_id` plus email or phone the right check before showing order data? What about the shared email (customers 11 and 43)?
-7. **Cancellation.** The policy doesn't say whether `pending` or `confirmed` orders can be cancelled. Should the agent pass these requests to a human, or answer from the policy only?
-8. **Installment rule for ≤3x.** Read it as a minimum installment of R$50?
-9. **Shipping quotes.** The data has no CEP or weight. Should the agent quote only the metro rule (free above R$500, otherwise R$35) and refer everything else to the team?
+The open questions raised by this inventory, resolved on 2026-10-27. None of them changes `data/`; every rule is applied in code, settings or documentation, and each assumption goes into the README.
+
+### D1. Return-window reference date
+- For `delivered` orders, `estimated_delivery` is treated as the receipt date. For `shipped` orders the receipt date is unknown, so receipt-based windows (§4.1, §8.1) have not started.
+- "Today" comes from an optional `STORE_TODAY` setting and falls back to the system date.
+- `.env.example` suggests `STORE_TODAY=2026-03-23`, the day after the last order and so the effective snapshot date of the data. On that date no order is in the future, pending orders are plausible, and order 7 shows the rules layering: 34 days after receipt (withdrawal expired), 48 days after purchase (defect exchange expired), inside the 90-day legal warranty.
+- The "inside the window" example is recorded with `STORE_TODAY=2026-02-20` (order 7, 3 days after receipt), and the date is stated in the example's header.
+- Guard: if `order_date > today`, the order tool reports the order but computes no window for it.
+
+### D2. Promotions without dates
+- `is_active == 1` is the only source of truth for promotions.
+- A promotion is current only when the product is also `active` with stock > 0 (§6.2). Today all 4 active promotions (products 90, 94, 121, 127) have stock, so this is a safety net.
+- A test asserts that no product has more than one current promotion.
+
+### D3. Canonical contacts
+Resolved as a cleaning step at policy ingestion:
+- Email: `contato@emporiodamusica.com.br`. The accented form in §1.2 is treated as a typo.
+- Phone: (67) 3341-4444 (cover and §1.2).
+- WhatsApp: (67) 3321-4500. §7 is the section dedicated to the WhatsApp channel, so the more specific section wins.
+
+### D4. Products 135–144
+- Kept in the catalogue: order 10 contains product 135, so removing them would break order lookups.
+- Only name, price, availability and status are shown. Description and specs are never quoted.
+- The IDs live in an explicit set in the cleaning module, with a comment explaining why and a test.
+
+### D5. Product status in search results
+- The search tool takes `only_available: bool = True`. List and price-filter queries return only buyable products (`active` and stock > 0).
+- Lookup by name returns any status with a label: "em breve" (`coming_soon`), "fora de catálogo" (`discontinued`) or "temporariamente indisponível" (`active`, stock 0), followed by alternatives (§7.3).
+
+### D6. Customer verification
+- Order data is shown only for `order_id` plus an email or phone that matches that order's customer. Because the check is per order, the shared email of customers 11 and 43 doesn't matter (customer 43 has no orders).
+- There is no "list my orders by email" feature.
+- Contact details are masked in replies, and only the fields a tool needs reach the LLM.
+
+### D7. Cancellation and other change requests
+- All tools are read-only.
+- For a cancellation request, the agent explains the order's current status, says the policy doesn't cover self-service cancellation, and hands off to the team with the WhatsApp number and business hours. It never promises a cancellation or a refund.
+- Withdrawal and exchange requests work the same way: the agent explains whether the order qualifies, and the team handles the logistics.
+
+### D8. Installment tiers
+- Minimum installment: 1–3x R$50, 4–6x R$80, 7–12x R$100; 12x is the maximum. 1x is always allowed.
+- The R$100 in the §3 table is read as the 12x headline, not a general rule. With the cheapest product at R$159.90 (3× R$53.30), the R$50 floor never binds today.
+
+### D9. Shipping quotes
+- Prices are quoted only for the metro rule: Campo Grande, free above R$500, otherwise R$35 (§5.1).
+- For other cities the agent gives the PAC, SEDEX and Jadlog time ranges, says the price depends on CEP, weight and size, and hands off for a quote (§5.2).
+- Drums, keyboards and basses are flagged as possibly needing a special quote. The agent doesn't ask for a CEP, since no tool can use it.
+
+### D10. Policy retrieval: RAG over the PDF
+The policy is about 3 K tokens, so putting it whole in the system prompt would work and is simpler. RAG is kept anyway, because:
+- The challenge asks for a justified retrieval architecture, and RAG behind a `search_policies` tool keeps "when to consult policies" an explicit agent decision, separate from "when to consult data".
+- Heading-aware chunks (one per subsection, about 25 chunks, no overlap needed since subsections are self-contained) let the agent cite the section it used.
+- It scales if the manual grows, and keeps the system prompt short and stable.
+
+Trade-off: retrieval can miss a relevant section that full context would always include. This is mitigated with retrieval tests on known questions and listed as a known limitation in the README, with full-context prompting as the alternative.
+
+### D11. Example conversations
+The 5 conversations to record (challenge deliverable 3), with the data they exercise:
+
+| # | Scenario | Records | What it shows |
+|---|---|---|---|
+| 1 | "Quais opções de violões disponíveis custando até R$1000?" | 12 available violões (83, 85, 89, 88, 81, 84, 87, 86, 107, 82, 91, 112) | Catalogue search with filters; 96 (stock 0) and 113 (discontinued) excluded |
+| 2 | "Quanto custa o Takamine GD20?" | Product 95, R$ 2.199,00, promotion 4 inactive | Price lookup, PIX price (R$ 2.089,05), installments (12x R$ 183,25), expired promotion handled transparently |
+| 3 | "Qual o endereço da loja? Que horas vocês abrem no sábado?" | Policy §1.2 and §2 | Policy retrieval with section citation |
+| 4 | "Me arrependi da minha compra, posso devolver meu pedido?" | Order 7, customer 14 (verified by order ID + email) | Verification, then layered return rules: inside the withdrawal window at `STORE_TODAY=2026-02-20`, outside it at `2026-03-23` |
+| 5 | "Vocês vendem cordas? E saxofone?" | Policy §1 and §7.1; category 6 with no products | Out-of-scope redirect and an empty category without inventing items |
+
+Order 8 (shipped, estimated delivery 2026-02-28, now late) is the reserve for an order-status example.
