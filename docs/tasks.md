@@ -133,15 +133,15 @@ How to use this file:
 - **Tests:** "Takamine GD20" → 95 with `pix_price.fmt == "R$ 2.089,05"`, 12x R$ 183,25, `inactive_promotions` non-empty; 121 → promotion set, `pix_price is None`; 81 → max 6x R$ 99,98; 113 → "fora de catálogo" with alternatives [110, 112, …]; 96 → "temporariamente indisponível"; 130 → "em breve"; 135 → no description/specs; "yamaha" → `found=False` with candidates; "violino stradivarius" → not found, no candidates; neither ID nor name → validation error.
 - **Commit:** `feat: add get_product_details tool`
 
-### [ ] T11 — Return and warranty windows
+### [x] T11 — Return and warranty windows
 
 - **Goal:** Pure date-window logic (design §6.4 window rules).
 - **Files:** `src/.../domain/windows.py`, `tests/unit/test_windows.py`
 - **FRs:** FR-07 (A-01, A-02, A-14, A-15, A-19)
 - **Acceptance criteria:**
-  - [ ] `compute_windows(order, reference_date)` returns windows in FR-07 order, or `None` with the right note (not delivered, cancelled, order date after reference date).
-  - [ ] Receipt = `estimated_delivery`; day `length_days` still open; `exclusions_to_check` and manufacturer-warranty note from §4.4 / §8.2.
-  - [ ] `is_late(order, reference_date)` for shipped orders.
+  - [x] `compute_windows(order, reference_date)` returns windows in FR-07 order, or `None` with the right note (not delivered, cancelled, order date after reference date).
+  - [x] Receipt = `estimated_delivery`; day `length_days` still open; `exclusions_to_check` and manufacturer-warranty note from §4.4 / §8.2.
+  - [x] `is_late(order, reference_date)` for shipped orders.
 - **Tests:** order 7 at 2026-02-20 → arrependimento open (3 days); at 2026-03-23 → arrependimento closed (34), defeito closed (48), garantia legal open; boundary: day 7 open, day 8 closed; order 8 → no windows, `is_late` at 2026-03-23; cancelled order → note; order dated after reference → no windows.
 - **Commit:** `feat: compute return and warranty windows`
 

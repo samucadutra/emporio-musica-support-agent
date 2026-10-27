@@ -569,7 +569,20 @@ Verification rules (`privacy.py`):
 - An unknown order and a mismatch return the **identical** `OrderStatusResult(verified=False, message="not_found_or_not_verified")`. No timing branch; the dict lookups are constant-time.
 - The tool reads the customer only to compare contacts and take the first name. The output never contains email, phone, customer ID, city or full name. A unit test serializes every verified order and checks that no customer email or phone string appears in it (NFR-02).
 
-Window rules (`domain/windows.py`):
+Window rules (`domain/windows.py`). `Window` and `ReturnWindows` are defined there and re-used by `tools/schemas.py`:
+
+```python
+@dataclass(frozen=True)
+class WindowCheck:
+    windows: ReturnWindows | None
+    note: str | None                 # why windows is None
+
+def compute_windows(order: Order, reference_date: date) -> WindowCheck: ...
+def is_late(order: Order, reference_date: date) -> bool: ...  # shipped and estimated_delivery < reference_date
+```
+
+The checks run in this order: order date after the reference date, cancelled, not delivered, then a delivered order with no `estimated_delivery` ("receipt date unknown", a defensive guard; no such order is in the data). `WINDOW_RULES` lists the four windows in FR-07 order. `EXCLUSIONS_TO_CHECK` holds the three §4.4 items, and `MANUFACTURER_WARRANTY_NOTE` adds "6 months to 2 years" from §8.2.
+
 - `reference_date = settings.store_today or clock.now(tz).date()`.
 - `windows` is set only for `delivered` orders with `order_date ≤ reference_date`. Otherwise it's `None`, with `windows_note`: "not delivered yet: receipt-based windows have not started" for pending/confirmed/shipped, "order cancelled" for cancelled, or "order date is after the reference date" (D1 guard).
 - Receipt date = `estimated_delivery` (A-01). Arrependimento, preferência and garantia legal count from receipt (A-19); troca por defeito counts from `order_date`. Day `length_days` itself is still open ("em até 7 dias corridos").
@@ -929,7 +942,7 @@ Transcript export (`examples/*.md`) is built from the checkpointed messages:
 
 <details><summary>Tools</summary>
 
-- `get_order_status` {"order_id": 7, "email": "le***@jmail.com"} → verified · entregue · open: direito_de_arrependimento, troca_por_defeito, garantia_legal
+- `get_order_status` {"order_id": 7, "email": "le***@jmail.com"} → verified · entregue · open: direito_de_arrependimento, troca_por_defeito, troca_por_preferencia, garantia_legal
 - `search_policies` {"question": "devolução arrependimento"} → 4.1, 4.3, 4.2, 8.1
 </details>
 
