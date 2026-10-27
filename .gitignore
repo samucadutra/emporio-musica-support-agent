@@ -18,6 +18,9 @@ dist/
 *.sqlite3
 *.db
 
+# Runtime data (DB, index, models, handoffs, logs)
+var/
+
 # Vector store
 .chroma/
 

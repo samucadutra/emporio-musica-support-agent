@@ -7,10 +7,38 @@ authors = [
     { name = "Samuel Dutra", email = "samuel.dutra@dmetrics.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "chromadb>=1.5.9",
+    "fastembed>=0.9.1",
+    "langchain>=1.4.7",
+    "langchain-chroma>=1.1.0",
+    "langchain-core>=1.7.0",
+    "langchain-google-genai>=4.4.2",
+    "langgraph>=1.2.18",
+    "langgraph-checkpoint-sqlite>=3.1.2",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.1",
+    "pypdf>=6.21.3",
+    "pyyaml>=6.0.3",
+    "rich>=15.0.0",
+    "tenacity>=9.1.4",
+    "typer>=0.27.3",
+    "tzdata>=2026.5",
+]
 
 [project.scripts]
-emporio-musica-support-agent = "emporio_musica_support_agent:main"
+emporio = "emporio_musica_support_agent.cli:app"
+
+[project.optional-dependencies]
+openai = [
+    "langchain-openai>=1.7.3",
+]
+anthropic = [
+    "langchain-anthropic>=1.7.6",
+]
+ollama = [
+    "langchain-ollama>=1.1.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.12.21,<0.13.0"]
@@ -19,7 +47,27 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pandas>=3.1.0",
-    "pypdf>=6.21.3",
     "pytest>=9.1.1",
     "ruff>=0.17.3",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --import-mode=importlib"
+markers = [
+    "llm: needs an LLM API key; skipped when the key is not set",
+    "embeddings: needs the local embedding model (downloads ~220 MB once)",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+# Specs are not formatted; scripts/inspect_data.py is a one-off data inspection script.
+extend-exclude = ["*.md", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["emporio_musica_support_agent"]

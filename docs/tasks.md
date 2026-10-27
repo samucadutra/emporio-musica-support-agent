@@ -11,16 +11,16 @@ How to use this file:
 
 ---
 
-### [ ] T01 — Project scaffolding
+### [x] T01 — Project scaffolding
 
 - **Goal:** Runtime and dev dependencies, the `emporio` console script, pytest markers and ruff config, so every later task has a place to land.
 - **Files:** `pyproject.toml`, `uv.lock`, `.gitignore`, `src/emporio_musica_support_agent/__init__.py`, `src/emporio_musica_support_agent/cli.py`, `tests/conftest.py`, `tests/unit/test_smoke.py`
 - **FRs:** FR-14 (CLI entry point) (NFR-09)
 - **Acceptance criteria:**
-  - [ ] Runtime deps from design §2 added (`pypdf` moved from dev to runtime); extras `openai`, `anthropic`, `ollama`; `pandas` stays dev only.
-  - [ ] Console script `emporio = "emporio_musica_support_agent.cli:app"` replaces the template `main`; `uv run emporio --help` prints a Typer help screen.
-  - [ ] Pytest markers `llm` and `embeddings` registered; ruff configured (line length, import sorting, target py312).
-  - [ ] `.gitignore` contains `var/`.
+  - [x] Runtime deps from design §2 added (`pypdf` moved from dev to runtime); extras `openai`, `anthropic`, `ollama`; `pandas` stays dev only.
+  - [x] Console script `emporio = "emporio_musica_support_agent.cli:app"` replaces the template `main`; `uv run emporio --help` prints a Typer help screen.
+  - [x] Pytest markers `llm` and `embeddings` registered; ruff configured (line length, import sorting, target py312).
+  - [x] `.gitignore` contains `var/`.
 - **Tests:** `test_smoke.py`: package imports; Typer `CliRunner` runs `--help` with exit code 0.
 - **Commit:** `build: add dependencies, emporio CLI entry point and test config`
 

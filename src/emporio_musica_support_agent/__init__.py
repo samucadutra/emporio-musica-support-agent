@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from emporio-musica-support-agent!")
+"""Customer-support agent for the Empório da Música store."""
