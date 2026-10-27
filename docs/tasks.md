@@ -36,15 +36,15 @@ How to use this file:
 - **Tests:** defaults; `.env` parsing from a temp file; `STORE_TODAY` parsed as `date`; `export_provider_env` doesn't overwrite an existing env var.
 - **Commit:** `feat: add settings and env example`
 
-### [ ] T03 — Text helpers and clock
+### [x] T03 — Text helpers and clock
 
 - **Goal:** Search-key folding, BRL formatting, money rounding, and an injectable clock.
 - **Files:** `src/.../text.py`, `src/.../clock.py`, `tests/unit/test_text.py`, `tests/unit/test_clock.py`
 - **FRs:** FR-01 (accent-insensitive match), FR-05 (clock)
 - **Acceptance criteria:**
-  - [ ] `fold()` does NFKD, strips combining marks, casefolds, collapses whitespace, treats `-` and `/` as spaces.
-  - [ ] `format_brl(Decimal("2199")) == "R$ 2.199,00"`; `round_money` uses `ROUND_HALF_UP` to 2 places.
-  - [ ] `Clock` protocol with `now(tz)`; `SystemClock`, `FixedClock`.
+  - [x] `fold()` does NFKD, strips combining marks, casefolds, collapses whitespace, treats `-` and `/` as spaces.
+  - [x] `format_brl(Decimal("2199")) == "R$ 2.199,00"`; `round_money` uses `ROUND_HALF_UP` to 2 places.
+  - [x] `Clock` protocol with `now(tz)`; `SystemClock`, `FixedClock`.
 - **Tests:** `fold("VIOLÃO") == "violao"`; `fold("Cedr-Natural")`; formatting of 0, 159.9, 2089.05, 19567; half-up rounding; `FixedClock` returns a tz-aware datetime in the requested zone.
 - **Commit:** `feat: add text folding, BRL formatting and clock`
 
