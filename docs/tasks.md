@@ -213,14 +213,14 @@ How to use this file:
 - **Tests:** 26 chunks; every outline heading present; §7.2 "1. Saudação" doesn't start a chunk; §5.2 table and notes in one chunk; max chunk ≤ 1,800 chars; IDs stable across two runs; outline with a fake heading raises.
 - **Commit:** `feat: chunk policy text by section headings`
 
-### [ ] T18 — Local embeddings and `PolicyIndex`
+### [x] T18 — Local embeddings and `PolicyIndex`
 
 - **Goal:** Persistent Chroma index with manifest-based idempotency (design §4, §7 index).
 - **Files:** `src/.../llm.py` (`FastEmbedEmbeddings` only), `src/.../rag/index.py`, `tests/retrieval/test_policy_index.py`, `tests/unit/test_index_manifest.py`
 - **FRs:** FR-06, FR-14 (ingest idempotency) (NFR-04, NFR-06)
 - **Acceptance criteria:**
-  - [ ] `FastEmbedEmbeddings` implements `embed_documents` / `embed_query`, cache in `models_cache_dir`.
-  - [ ] `PolicyIndex.status()` → `missing` / `stale(reason)` / `ok`; `build(force)` is a no-op when up to date, writes `manifest.json` last; `search(query, k)` returns `PolicyChunk`s with `score = 1 − distance`.
+  - [x] `FastEmbedEmbeddings` implements `embed_documents` / `embed_query`, cache in `models_cache_dir`.
+  - [x] `PolicyIndex.status()` → `missing` / `stale(reason)` / `ok`; `build(force)` is a no-op when up to date, writes `manifest.json` last; `search(query, k)` returns `PolicyChunk`s with `score = 1 − distance`.
 - **Tests:** unit (fake `Embeddings`, no download): missing → build → ok; second build is a no-op; changed model name or PDF hash → stale; interrupted build (no manifest) → stale. `embeddings`-marked: real build in a temp dir returns 26 chunks.
 - **Commit:** `feat: add local embeddings and persistent policy index`
 

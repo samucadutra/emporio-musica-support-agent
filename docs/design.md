@@ -111,7 +111,7 @@ Rules:
 - The console script becomes `emporio = "emporio_musica_support_agent.cli:app"`, replacing the template `main`.
 - `.gitignore` gets `var/`.
 
-Dependencies (runtime): `langgraph`, `langchain`, `langchain-core`, `langchain-google-genai`, `langgraph-checkpoint-sqlite`, `langchain-chroma`, `chromadb`, `fastembed`, `pypdf`, `pydantic`, `pydantic-settings`, `typer`, `rich`, `pyyaml`, `tenacity`, `tzdata`.
+Dependencies (runtime): `langgraph`, `langchain`, `langchain-core`, `langchain-google-genai`, `langgraph-checkpoint-sqlite`, `chromadb` (used directly, §7), `fastembed`, `pypdf`, `pydantic`, `pydantic-settings`, `typer`, `rich`, `pyyaml`, `tenacity`, `tzdata`.
 Optional extras for other providers: `openai` → `langchain-openai`, `anthropic` → `langchain-anthropic`, `ollama` → `langchain-ollama`.
 Dev: `pytest`, `ruff`, plus the existing `pandas` (used only by `scripts/inspect_data.py`).
 
@@ -212,7 +212,7 @@ init_chat_model(
 
 `init_chat_model` splits `provider:model` and imports the matching integration package. Switching provider means changing `LLM_MODEL` plus the key (and installing the extra), with no code change (NFR-05). If the integration package is missing, the `ImportError` is turned into "install with `uv sync --extra <provider>`". The graph only uses the provider-neutral surface: `bind_tools`, `invoke`, and `AIMessage.tool_calls` / `usage_metadata`.
 
-**Embeddings.** `llm.FastEmbedEmbeddings(model_name, cache_dir)` is a ~20-line adapter implementing LangChain's `Embeddings` interface (`embed_documents`, `embed_query`) over `fastembed.TextEmbedding`. A local adapter avoids pulling in `langchain-community` for one class.
+**Embeddings.** `llm.FastEmbedEmbeddings(model_name, cache_dir)` is a ~20-line adapter implementing LangChain's `Embeddings` interface (`embed_documents`, `embed_query`) over `fastembed.TextEmbedding`. A local adapter avoids pulling in `langchain-community` for one class. The model loads on first use, so building `Deps` or checking the index status never downloads it.
 
 Why `paraphrase-multilingual-MiniLM-L12-v2`:
 - It was trained on 50+ languages including Portuguese, and the policy text and customer questions are pt-BR.
@@ -764,15 +764,34 @@ def chunk_policy(policy: PolicyText, outline=POLICY_OUTLINE,
 **Index (`rag/index.py`).**
 
 ```python
+@dataclass(frozen=True)
+class IndexStatus:
+    state: Literal["missing", "stale", "ok"]
+    reason: str | None = None
+
+@dataclass(frozen=True)
+class BuildReport:
+    built: bool                      # False: already up to date, nothing touched
+    chunk_count: int
+    manifest: dict[str, object]
+
 class PolicyIndex:
-    def __init__(self, chroma_dir: Path, embeddings: Embeddings, pdf_path: Path) -> None: ...
+    def __init__(self, chroma_dir: Path, embeddings: Embeddings, pdf_path: Path,
+                 embedding_model: str) -> None: ...
     def status(self) -> IndexStatus: ...            # missing | stale(reason) | ok
     def build(self, force: bool = False) -> BuildReport: ...
-    def search(self, query: str, k: int) -> list[PolicyChunk]: ...
+    def search(self, query: str, k: int) -> list[PolicyChunk]: ...  # IndexNotReadyError unless ok
 ```
 
-- Chroma (`langchain_chroma.Chroma`), with `collection_name="policies"`, `persist_directory=chroma_dir` and `collection_metadata={"hnsw:space": "cosine"}`. `score = 1 − distance`.
-- **Idempotent ingest:** `build()` computes the would-be manifest. If it equals `manifest.json` and `force` is false, it returns "up to date" and touches nothing. Otherwise it deletes the collection, re-adds all chunks with their deterministic IDs and writes the manifest last, so an interrupted build reads as stale next time.
+- **`chromadb` is used directly**: `PersistentClient` with telemetry off, collection `"policies"`, `metadata={"hnsw:space": "cosine"}` and no embedding function. `score = 1 − distance`, clamped to 0..1. Each chunk embeds its title-prefixed `embedding_text` but stores the plain `text`. `langchain_chroma.Chroma` embeds exactly the text it stores, and only offers precomputed vectors through its private `_collection`, so the `langchain-chroma` dependency was dropped.
+- **`embedding_model`** is passed in, because the manifest records it and the `Embeddings` interface has no model name.
+- **`PolicyChunk`** (§6.5) is defined in `rag/index.py`, and `tools/schemas.py` re-uses it.
+- **`status()`** never opens Chroma:
+  - no manifest and an empty directory → `missing`
+  - no manifest but files present → `stale("manifest missing: interrupted build")`
+  - otherwise it compares `embedding_model`, `pdf_sha256` and `chunker_version`. `chunk_count` and `built_at` are informational.
+- **`search()`** raises `IndexNotReadyError` unless the status is `ok`, so a stale index is never queried. That costs one PDF hash per call.
+- **Idempotent ingest:** `build()` computes the would-be manifest. If it equals `manifest.json` and `force` is false, it returns "up to date" and touches nothing. Otherwise it deletes the manifest and the collection, re-adds all chunks with their deterministic IDs, and writes the manifest last, so an interrupted build reads as stale next time.
 - `chat` and `eval` call `status()` at start-up and run `build()` with a visible notice when the index is missing or stale. The explicit `ingest` command stays the documented step (FR-14, NFR-06).
 - **k = 4:** most questions need one section, and the compound ones need 2–3 (a return question touches 4.1, 4.2 and 8.1). Four chunks is ~2–3 K characters, cheap for the model. A k much larger than that pulls in unrelated sections the model might quote. The retrieval tests (§13) check hit@4 on known questions, and `RETRIEVAL_K` can be tuned.
 - No score threshold: the model judges whether the chunks answer the question (FR-06), and the scores are in the output for transparency. A threshold would need calibration data we don't have.
