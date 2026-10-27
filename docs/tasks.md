@@ -109,16 +109,16 @@ How to use this file:
 - **Tests:** 113 → [110, 112, …]; 96 → starts with 91; result length ≤ 3; all results `disponível`.
 - **Commit:** `feat: suggest alternatives for unavailable products`
 
-### [ ] T09 — Catalog tools: `search_products` and `list_categories`
+### [x] T09 — Catalog tools: `search_products` and `list_categories`
 
 - **Goal:** Shared tool schemas and the first two pure tool functions (design §6, §6.1, §6.3).
 - **Files:** `src/.../tools/__init__.py`, `src/.../tools/schemas.py`, `src/.../tools/catalog.py`, `tests/unit/test_tools_catalog.py`
 - **FRs:** FR-01, FR-03, FR-08, FR-09
 - **Acceptance criteria:**
-  - [ ] `Money`, `PromotionInfo`, `ProductSummary`, `SearchProductsInput`, `ProductSearchResult`, `CategorySummary`, `CategoryListResult` as in design §6.
-  - [ ] `search_products(repo, params)`: limit/truncation, `category_matched`, notes for unknown and empty categories, `closest_matches` when total is 0 and a name-like query was given.
-  - [ ] `list_categories(repo)` returns all 9 categories with `available_count` (6–8 are 0).
-  - [ ] Docstrings as in design §6.1 / §6.3.
+  - [x] `Money`, `PromotionInfo`, `ProductSummary`, `SearchProductsInput`, `ProductSearchResult`, `CategorySummary`, `CategoryListResult` as in design §6.
+  - [x] `search_products(repo, params)`: limit/truncation, `category_matched`, notes for unknown and empty categories, `closest_matches` when total is 0 and a name-like query was given.
+  - [x] `list_categories(repo)` returns all 9 categories with `available_count` (6–8 are 0).
+  - [x] Docstrings as in design §6.1 / §6.3.
 - **Tests:** violões ≤ 1000 → 12 IDs in order, none of 96/113; `only_available=False` includes 96 and 113; `limit=5` → `truncated=True`, `total=12`; "saxofone" → total 0 with "category has no products"; unknown product name → `closest_matches`; promotion fields present for 121; `max_price < min_price` raises validation error; categories 6–8 count 0.
 - **Commit:** `feat: add search_products and list_categories tools`
 

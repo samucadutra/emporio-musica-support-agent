@@ -360,14 +360,14 @@ Conventions for every tool:
 - **Errors.** Expected outcomes (not found, not verified, empty) are normal results with a flag, never exceptions. Unexpected exceptions are caught by `ToolNode(handle_tool_errors=True)` and returned as an error ToolMessage. The prompt treats that like "no information" (FR-09). Pydantic validation errors (e.g. `max_price < min_price`) come back as error text, so the model can fix the call.
 - Money fields come in pairs: `*_brl: float` and `*_fmt: str`.
 
-Shared output models (`tools/schemas.py`):
+Shared output models (`tools/schemas.py`). `Availability` is imported from `data/cleaning.py`, not redefined. `Money.from_decimal(value)` builds both fields, using `round_money` and `format_brl`. `tools/catalog.product_summary(repo, product) -> ProductSummary` fills the category name and the current promotion, and T09 and T10 share it.
 
 ```python
-Availability = Literal["disponível", "temporariamente indisponível", "fora de catálogo", "em breve"]
-
 class Money(BaseModel):
     brl: float          # 2199.0
     fmt: str            # "R$ 2.199,00"
+    @classmethod
+    def from_decimal(cls, value: Decimal) -> "Money": ...
 
 class PromotionInfo(BaseModel):
     campaign: str                 # "Desconto Exclusivo"
@@ -411,7 +411,14 @@ def search_products(repo: Repository, params: SearchProductsInput) -> ProductSea
 Docstring:
 > Search the store catalogue. Use for questions like "what X do you have", "options under R$ N", "do you have brand Y", or when the customer names a product loosely. By default it returns only products that can be bought now, sorted by price. Price filters use the list price. Show at most the returned items, using `price.fmt` and, when `promotion` is set, the promotion fields. If `truncated` is true, offer to narrow the search. If `total` is 0, say nothing matching is available right now and offer `closest_matches` if any. Never mention products that are not in the result. For one product's price, installments or details, call `get_product_details` instead.
 
-Behavior: an unknown category returns `total=0` with a note. An empty category (6–8) returns `total=0`, `category_matched="Instrumentos de Sopro (Madeiras)"` and `note="category has no products"`. Acceptance: `max_price=1000, category="violões"` returns exactly the 12 IDs in PRD FR-01, in the price order listed in PRD §12.
+Behavior:
+- `SearchProductsInput` rejects `max_price < min_price` with "max_price must be >= min_price".
+- An unknown `category` returns `total=0` with `note="unknown category '<x>'; call list_categories"`.
+- Without `category`, `category_matched` comes from `parse_query(query)` (§5.3), so "violões até R$ 1000" reports "Violões".
+- When `total == 0`:
+  - An empty category (6–8) gives `note="category has no products"` and `category_matched` set, e.g. "Instrumentos de Sopro (Madeiras)" for "saxofone".
+  - Otherwise, a **name-like** query (one with tokens left after `parse_query` removes category and price words) gets `closest_matches` from `find_products_by_name` and `note="no match; see closest_matches"`.
+  - Otherwise, `note="no products match these filters"`. Acceptance: `max_price=1000, category="violões"` returns exactly the 12 IDs in PRD FR-01, in the price order listed in PRD §12.
 
 ### 6.2 `get_product_details` (FR-02, FR-03, FR-09)
 
