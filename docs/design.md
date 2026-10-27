@@ -678,8 +678,8 @@ class HandoffTicket(BaseModel):
     next_opening: datetime | None
     response_time_note: str | None  # complaints: "retorno em até 24 horas úteis (seção 7.3)"
 
-def request_human_handoff(log: HandoffLog, clock: Clock, session_id: str,
-                          params: HandoffInput) -> HandoffTicket: ...
+def request_human_handoff(log: HandoffLog, clock: Clock, settings: Settings, session_id: str,
+                          params: HandoffInput) -> HandoffTicket: ...  # settings: store_timezone
 ```
 
 Docstring:
@@ -689,6 +689,11 @@ Docstring:
 - `HandoffLog.append(record)` writes one JSON line: `ticket_id, created_at, session_id, reason, summary, order_id`. The summary goes through `privacy.mask_pii` first, which masks any email or phone pattern except the store's own numbers (NFR-02).
 - Masking formats (`privacy.py`): emails become `le***@jmail.com`, and phones become `***-0123` (last 4 digits). A phone is any run of digits with phone punctuation (`+`, spaces, `()`, `.`, `-`) that holds 9–13 digits. That covers a mobile without its area code, but not dates, the ZIP code (8 digits) or prices (`,` breaks the run). The store's own email and numbers are exempt. `privacy.py` keeps their normalized forms (`STORE_EMAIL`, `STORE_PHONE_DIGITS`) because it comes before `domain/store.py` (T13). A T13 test checks that `mask_pii` leaves every `domain/store.py` contact unchanged, so the two lists can't drift.
 - Ticket ID: `EMP-<YYYYMMDD>-<4 hex from secrets.token_hex(2)>`, retried on the rare collision within the file.
+- Implementation (`tools/handoff.py`):
+  - Each log line is a `HandoffRecord`, holding the masked summary.
+  - `HandoffLog(path, token=random_token)` takes the token generator as an argument, so tests inject a fixed sequence instead of patching `secrets`. It gives up with a `RuntimeError` after `MAX_TICKET_ATTEMPTS = 20` collisions.
+  - The ticket date and `created_at` use the clock in `settings.store_timezone`, which is why the tool takes `settings`.
+  - `HandoffInput.order_id` must be ≥ 1. The complaint note reads "retorno em até 24 horas úteis (seção 7.3)".
 
 ---
 

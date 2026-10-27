@@ -169,15 +169,15 @@ How to use this file:
 - **Tests:** FixedClock Saturday 12:59 open with `closes_at` 13:00; Saturday 13:00 closed; Sunday closed → next Monday 09:00; weekday 08:59 closed → same day 09:00; `STORE_TODAY` set doesn't change `open_now`.
 - **Commit:** `feat: add store facts and get_store_info tool`
 
-### [ ] T14 — Handoff log and `request_human_handoff`
+### [x] T14 — Handoff log and `request_human_handoff`
 
 - **Goal:** Append-only JSONL handoff tickets with masked summaries (design §6.7).
 - **Files:** `src/.../tools/schemas.py`, `src/.../tools/handoff.py`, `tests/unit/test_tools_handoff.py`
 - **FRs:** FR-13 (NFR-02)
 - **Acceptance criteria:**
-  - [ ] `HandoffLog.append` writes `ticket_id, created_at, session_id, reason, summary, order_id`, creating parent dirs.
-  - [ ] Ticket ID `EMP-<YYYYMMDD>-<4 hex>`, retried on collision.
-  - [ ] Summary masked with `mask_pii`; complaint → `response_time_note`; `team_available_now` / `next_opening` from the store domain.
+  - [x] `HandoffLog.append` writes `ticket_id, created_at, session_id, reason, summary, order_id`, creating parent dirs.
+  - [x] Ticket ID `EMP-<YYYYMMDD>-<4 hex>`, retried on collision.
+  - [x] Summary masked with `mask_pii`; complaint → `response_time_note`; `team_available_now` / `next_opening` from the store domain.
 - **Tests:** ticket format; JSONL line fields; email/phone in summary are masked in the file; complaint note present, other reasons `None`; closed-store clock → `team_available_now=False` with `next_opening`; collision retry (patched token).
 - **Commit:** `feat: add human handoff tool and log`
 

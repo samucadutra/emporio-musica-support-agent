@@ -5,7 +5,7 @@ Field descriptions on Input models become the JSON schema the model sees.
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -200,6 +200,35 @@ class StoreInfo(BaseModel):
     next_opening: datetime | None  # when closed
     closes_at: datetime | None  # when open
     source_sections: list[str]  # ["1.2", "2", "7"]
+
+
+HandoffReason = Literal["complaint", "cancellation", "return", "freight_quote", "unknown", "other"]
+
+
+class HandoffInput(BaseModel):
+    reason: HandoffReason
+    summary: str = Field(
+        max_length=500,
+        description=(
+            "One or two sentences for the team: what the customer needs. "
+            "Do not include email or phone."
+        ),
+    )
+    order_id: int | None = Field(
+        None, ge=1, description="Only if the order was verified in this conversation."
+    )
+
+
+class HandoffTicket(BaseModel):
+    ticket_id: str  # "EMP-20260323-7F3A"
+    created_at: datetime
+    reason: HandoffReason
+    whatsapp: str
+    phone: str
+    hours: list[OpeningHours]
+    team_available_now: bool
+    next_opening: datetime | None
+    response_time_note: str | None  # complaints only (§7.3)
 
 
 class CategorySummary(BaseModel):
