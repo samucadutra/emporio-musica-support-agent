@@ -202,14 +202,14 @@ How to use this file:
 - **Tests:** real data passes; a mutated in-memory repo (orphan FK, two current promotions) and a policy text missing the address each produce a listed failure; multiple failures reported together.
 - **Commit:** `feat: validate data and policy facts at start-up`
 
-### [ ] T17 — Heading-aware policy chunking
+### [x] T17 — Heading-aware policy chunking
 
 - **Goal:** One chunk per numbered subsection, validated against `POLICY_OUTLINE` (design §7 chunking).
 - **Files:** `src/.../rag/chunking.py`, `tests/unit/test_chunking.py`
 - **FRs:** FR-06
 - **Acceptance criteria:**
-  - [ ] `POLICY_OUTLINE` with the 10 top-level and 18 numbered headings; missing heading raises.
-  - [ ] Cover chunk `0`, intro chunks, 1,800-char split guard, metadata (`section_number`, `section_title`, `parent_title`, `page`, `part`, `chunker_version`), deterministic IDs, embedding text with title prefix; `CHUNKER_VERSION` constant.
+  - [x] `POLICY_OUTLINE` with the 10 top-level and 18 numbered headings; missing heading raises.
+  - [x] Cover chunk `0`, intro chunks, 1,800-char split guard, metadata (`section_number`, `section_title`, `parent_title`, `page`, `part`, `chunker_version`), deterministic IDs, embedding text with title prefix; `CHUNKER_VERSION` constant.
 - **Tests:** 26 chunks; every outline heading present; §7.2 "1. Saudação" doesn't start a chunk; §5.2 table and notes in one chunk; max chunk ≤ 1,800 chars; IDs stable across two runs; outline with a fake heading raises.
 - **Commit:** `feat: chunk policy text by section headings`
 

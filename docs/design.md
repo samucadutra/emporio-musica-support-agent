@@ -739,6 +739,27 @@ Some numbers wrap across lines in the extracted text ("90\n(noventa) dias", "R$\
 - **Embedded text vs stored text:** the embedding input is `"Seção 4.1 — Direito de Arrependimento (Compras Online) | Política de Trocas e Devoluções\n<body>"`, so the titles add retrieval signal. The stored document is the body plus the heading line.
 - **Metadata:** `section_number`, `section_title`, `parent_title`, `page`, `part`, `chunker_version`.
 - **IDs:** `sec-<number>[-p<part>]`, e.g. `sec-4.1`. They're deterministic, so rebuilds are reproducible.
+- **Implementation:**
+  - Headings are matched as whole lines: top-level as `"N. Title"`, subsections as `"N.M Title"`. A missing heading raises `PolicyOutlineError`, which lists every heading not found.
+  - `page` is the page of the heading line. 5.2 and 7.2 cross a page break and report the page where they start.
+  - When the split guard applies (the cover included), each part repeats the heading line.
+  - `metadata` turns a missing `parent_title` into `""`, because Chroma rejects `None`.
+  - The result type is called `Chunk`, so it doesn't clash with the tool output `PolicyChunk` (§6.5).
+
+```python
+@dataclass(frozen=True)
+class Chunk:
+    id: str; section_number: str; section_title: str; parent_title: str | None
+    page: int; part: int; heading: str; body: str
+    text: str             # property: heading line + body (stored document)
+    embedding_text: str   # property: "Seção 4.1 — Title | Parent\n<body>"
+    metadata: dict        # property: the six metadata fields
+
+def chunk_policy(policy: PolicyText, outline=POLICY_OUTLINE,
+                 max_chars: int = MAX_CHUNK_CHARS) -> list[Chunk]: ...
+```
+
+  Today's 26 chunks run 179–817 characters. The largest is §7.1.
 
 **Index (`rag/index.py`).**
 
