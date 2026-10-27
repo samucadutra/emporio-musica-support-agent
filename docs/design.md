@@ -620,6 +620,7 @@ Docstring:
 
 - `session_id` doesn't come from the model. The LangChain wrapper declares a `runtime: ToolRuntime[AgentContext]` parameter, which LangChain hides from the model's schema, and reads `runtime.context.session_id`.
 - `HandoffLog.append(record)` writes one JSON line: `ticket_id, created_at, session_id, reason, summary, order_id`. The summary goes through `privacy.mask_pii` first, which masks any email or phone pattern except the store's own numbers (NFR-02).
+- Masking formats (`privacy.py`): emails become `le***@jmail.com`, and phones become `***-0123` (last 4 digits). A phone is any run of digits with phone punctuation (`+`, spaces, `()`, `.`, `-`) that holds 9–13 digits. That covers a mobile without its area code, but not dates, the ZIP code (8 digits) or prices (`,` breaks the run). The store's own email and numbers are exempt. `privacy.py` keeps their normalized forms (`STORE_EMAIL`, `STORE_PHONE_DIGITS`) because it comes before `domain/store.py` (T13). A T13 test checks that `mask_pii` leaves every `domain/store.py` contact unchanged, so the two lists can't drift.
 - Ticket ID: `EMP-<YYYYMMDD>-<4 hex from secrets.token_hex(2)>`, retried on the rare collision within the file.
 
 ---

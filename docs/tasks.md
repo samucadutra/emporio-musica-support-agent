@@ -48,15 +48,15 @@ How to use this file:
 - **Tests:** `fold("VIOLÃO") == "violao"`; `fold("Cedr-Natural")`; formatting of 0, 159.9, 2089.05, 19567; half-up rounding; `FixedClock` returns a tz-aware datetime in the requested zone.
 - **Commit:** `feat: add text folding, BRL formatting and clock`
 
-### [ ] T04 — Privacy helpers
+### [x] T04 — Privacy helpers
 
 - **Goal:** Contact normalization for verification and PII masking for logs, traces and handoffs (design §6.4, §6.7).
 - **Files:** `src/.../privacy.py`, `tests/unit/test_privacy.py`
 - **FRs:** FR-04, FR-13 (NFR-02)
 - **Acceptance criteria:**
-  - [ ] `emails_match()` (strip, remove inner whitespace, casefold) and `phones_match()` (digits only, strip leading `55`/`0` per design §6.4, 11 digits required).
-  - [ ] `mask_email("leticia.rocha@jmail.com") == "le***@jmail.com"`; `mask_phone` keeps only the last digits.
-  - [ ] `mask_pii(text)` masks every email and phone pattern except the store's own numbers and email.
+  - [x] `emails_match()` (strip, remove inner whitespace, casefold) and `phones_match()` (digits only, strip leading `55`/`0` per design §6.4, 11 digits required).
+  - [x] `mask_email("leticia.rocha@jmail.com") == "le***@jmail.com"`; `mask_phone` keeps only the last digits.
+  - [x] `mask_pii(text)` masks every email and phone pattern except the store's own numbers and email.
 - **Tests:** phone variants (`67997890123`, `+55 (67) 99789-0123`, `067...`) match; 9-digit number without DDD doesn't; email case/space variants; store WhatsApp/phone left unmasked; mixed text masked.
 - **Commit:** `feat: add contact matching and PII masking`
 
