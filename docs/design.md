@@ -290,14 +290,21 @@ Each product gets a `search_text = fold(name + category name + category aliases 
 | 8 Cordas Orquestrais | violino, viola, violoncelo, cello |
 | 9 Ukuleles | ukulele, ukuleles, uke |
 
-Aliases do two jobs: "violao ate 1000" matches category 5 from free text, and "saxofone" resolves to category 6, which is empty, so the tool can say "nothing of this kind" (FR-08). A query matches when **every** folded query token of 2+ characters is a substring of `search_text`. Stop words (`de`, `da`, `do`, `para`, `com`, `e`) and the words `ate`/`reais`/`r$` are dropped.
+Aliases do two jobs: "violao ate 1000" matches category 5 from free text, and "saxofone" resolves to category 6, which is empty, so the tool can say "nothing of this kind" (FR-08).
+
+Free text goes through `parse_query(query) -> ParsedQuery(tokens, category_id, max_price)` first:
+- **Price cap:** `até/ate [R$] N[,cc] [reais]` becomes `max_price` (`1000`, `1.000` and `1.000,00` all give 1000), and the phrase is removed from the text. A number left in the query would otherwise never match.
+- **Category word:** if the query's alias words (bigrams first, e.g. "guitarra eletrica") point to exactly one category, that category becomes a filter and those words leave the tokens. Matching "violão" as text would also hit ukulele 128, whose description says "…entre o ukulele e o violão". When the words point to two categories, they stay as text tokens. Aliases also stay in `search_text`.
+- **Tokens:** the rest is folded, split, and stripped of surrounding punctuation. Tokens shorter than 2 characters and stop words (`de`, `da`, `do`, `para`, `com`, `e`, `ate`, `reais`, `r$`) are dropped.
+
+`category_id` and `max_price` passed explicitly win over the parsed ones. A product matches when **every** token is a substring of its `search_text` or of its space-free folded name. The space-free name lets "ck20" find "Ohana CK-20", which folds to "ohana ck 20".
 
 Name lookup (`find_products_by_name`), in order:
 1. Folded exact name.
-2. Products whose folded name contains every query token. One hit is a match; several are candidates.
-3. `difflib.get_close_matches` on folded names (cutoff 0.6), returned as candidates only.
+2. Products whose folded name (or space-free name) contains every query token. One hit is a match; several are candidates (sorted by name, at most 5).
+3. Fuzzy candidates only, never a match. The space-free query is compared with each name's equally long space-free prefix (`SequenceMatcher.ratio() ≥ 0.6`), ranked by ratio, at most 5. `difflib.get_close_matches` on whole names found nothing, because names are much longer than a typed model name ("takamine gd2o" scored below 0.6 against every name).
 
-"Takamine GD20" → step 2 → 95 only. "yamaha" → several candidates.
+"Takamine GD20" → step 2 → 95 only. "yamaha" → several candidates. "takamine gd2O" → step 3 → 95 first. The lookup covers every status, so discontinued 113 is still found by name.
 
 ### 5.4 Repository API
 
@@ -310,8 +317,9 @@ class Repository:
     def get_product(self, product_id: int) -> Product | None: ...
     def find_products_by_name(self, name: str) -> NameLookup: ...  # match | candidates
     def search_products(
-        self, *, query: str | None, category_id: int | None, brand: str | None,
-        min_price: Decimal | None, max_price: Decimal | None, only_available: bool,
+        self, *, query: str | None = None, category_id: int | None = None,
+        brand: str | None = None, min_price: Decimal | None = None,
+        max_price: Decimal | None = None, only_available: bool = True,
     ) -> list[Product]: ...  # sorted by list price, then name
     def current_promotion(self, product_id: int) -> Promotion | None: ...
     def inactive_promotions(self, product_id: int) -> list[Promotion]: ...

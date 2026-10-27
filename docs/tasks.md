@@ -74,16 +74,16 @@ How to use this file:
 - **Tests:** row counts (9/65/25/20/22/50); 145 after 144; `credit_12x` → (`credit`, 12, "cartão de crédito em 12x"); order 1 tracking present, order 13 tracking `None`; labels for 96, 113, 130, 136; 135 unreliable, 134 reliable; missing data dir raises `DataFileNotFoundError`. Session-scoped `data_dir` fixture in `conftest.py`.
 - **Commit:** `feat: load and clean store CSV data`
 
-### [ ] T06 — Repository: indexes, search and name lookup
+### [x] T06 — Repository: indexes, search and name lookup
 
 - **Goal:** In-memory `Repository` with the query API from design §5.4 (minus pricing and alternatives).
 - **Files:** `src/.../data/repository.py`, `tests/conftest.py`, `tests/unit/test_repository.py`
 - **FRs:** FR-01, FR-08, FR-09
 - **Acceptance criteria:**
-  - [ ] `Repository.load(data_dir)`; `categories`, `resolve_category` (ID, name or `CATEGORY_ALIASES`), `get_product`, `get_order`, `get_order_items`, `get_customer`.
-  - [ ] `search_text` per design §5.3, description left out for unreliable IDs; stop words dropped; every token must be a substring.
-  - [ ] `search_products(...)` filters by query, category, brand (substring of folded name), price range, `only_available`; sorted by list price then name.
-  - [ ] `find_products_by_name` follows the 3-step lookup and returns match or candidates.
+  - [x] `Repository.load(data_dir)`; `categories`, `resolve_category` (ID, name or `CATEGORY_ALIASES`), `get_product`, `get_order`, `get_order_items`, `get_customer`.
+  - [x] `search_text` per design §5.3, description left out for unreliable IDs; stop words dropped; every token must be a substring.
+  - [x] `search_products(...)` filters by query, category, brand (substring of folded name), price range, `only_available`; sorted by list price then name.
+  - [x] `find_products_by_name` follows the 3-step lookup and returns match or candidates.
 - **Tests:** `category_id=5, max_price=1000` → the 12 IDs in PRD §12 order; "violao ate 1000" via free text matches the same set; "cedro" matches 84; "fender" doesn't match 135; "saxofone" resolves to category 6 with no products; "Takamine GD20" → match 95; "yamaha" → several candidates; typo "takamine gd2O" → fuzzy candidates. Session-scoped `repo` fixture.
 - **Commit:** `feat: add in-memory store repository with search`
 
