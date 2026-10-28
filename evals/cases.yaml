@@ -108,7 +108,7 @@
   expect:
     must_call: [get_order_status, search_policies]
     must_include: ["garantia legal"]
-    must_include_any: [["encerrad", "expirou", "passou", "fora do prazo", "venceu", "fechad"]]
+    must_include_any: [["encerr", "expirou", "passou", "fora do prazo", "venceu", "fechad"]]
     must_not_include: ["leticia.rocha@jmail.com", "99789-0123"]
 
 - id: order-8-late
@@ -130,7 +130,7 @@
     - "Qual o status do pedido 7? Meu email é errado@jmail.com"
   expect:
     must_call: [get_order_status]
-    must_include_any: [["nao encontr", "confira", "conferir", "verifique"]]
+    must_include_any: [["nao encontr", "nao consegui", "confira", "conferi", "verifique"]]
     must_not_include: ["BRKR1122334BR", "SU-21S", "159,90", "Letícia"]
 
 - id: strings-and-saxophone

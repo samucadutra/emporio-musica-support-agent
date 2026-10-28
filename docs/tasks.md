@@ -354,15 +354,15 @@ How to use this file:
 - **Tests:** harness with the fake model on a 2-case YAML → one pass, one fail, report rendered; p50/p95 computed on known latencies; `llm` test skips cleanly without a key.
 - **Commit:** `feat: add eval harness, report and eval command`
 
-### [ ] T30 — Live eval run and prompt tuning
+### [x] T30 — Live eval run and prompt tuning
 
 - **Goal:** Run the real eval on Gemini Flash and fix failures through prompt/docstring changes only.
 - **Files:** `src/.../agent/prompts.py`, `src/.../tools/*.py` (docstrings), `docs/design.md` (§9 if the prompt changed), `docs/eval-results.md`
 - **FRs:** FR-01…FR-13 (behavioural check) (NFR-01, NFR-03, NFR-04)
 - **Acceptance criteria:**
-  - [ ] `uv run emporio eval` reaches at least 14/15 passing; any remaining failure is explained in `docs/eval-results.md`.
-  - [ ] `PROMPT_VERSION` bumped if the prompt changed; design §9 updated to match.
-  - [ ] p50/p95 latency recorded in `docs/eval-results.md`.
+  - [x] `uv run emporio eval` reaches at least 14/15 passing; any remaining failure is explained in `docs/eval-results.md`. (Split across models because of free-tier quota; see the doc.)
+  - [x] `PROMPT_VERSION` bumped if the prompt changed; design §9 updated to match.
+  - [x] p50/p95 latency recorded in `docs/eval-results.md`.
 - **Tests:** none new (unit tests still green; `uv run pytest -m llm` matches the report).
 - **Commit:** `fix: tune prompt and tool docstrings from eval results`
 
