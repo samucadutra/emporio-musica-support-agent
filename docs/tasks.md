@@ -235,98 +235,98 @@ How to use this file:
 - **Tests:** `embeddings`-marked hit@4 for the 12 questions in design §13; unit: tool returns chunks sorted by score with a fake index; `CliRunner` ingest twice with a fake index → second says "up to date".
 - **Commit:** `feat: add search_policies tool and ingest command`
 
-### [ ] T20 — Logging setup and dependency container
+### [x] T20 — Logging setup and dependency container
 
 - **Goal:** PII-safe JSON logging and `build_deps` wiring with no globals (design §2 rules, §12).
 - **Files:** `src/.../logging_setup.py`, `src/.../app.py`, `tests/unit/test_logging.py`, `tests/unit/test_app.py`
 - **FRs:** — (NFR-02, NFR-08)
 - **Acceptance criteria:**
-  - [ ] `configure(settings, verbose)`: JSON-lines file handler, Rich console handler, `PIIMaskingFilter` on every handler (message and string `extra` fields).
-  - [ ] `Deps` frozen dataclass (settings, repo, policy_index, handoff_log, clock); `build_deps(settings, clock=None)` creates `var/` dirs and loads everything once.
+  - [x] `configure(settings, verbose)`: JSON-lines file handler, Rich console handler, `PIIMaskingFilter` on every handler (message and string `extra` fields).
+  - [x] `Deps` frozen dataclass (settings, repo, policy_index, handoff_log, clock); `build_deps(settings, clock=None)` creates `var/` dirs and loads everything once.
 - **Tests:** a log record with an email in the message and in `extra` is masked in the file; `build_deps` with a temp `var_dir` returns a `Deps` whose repo has 65 products; passing a `FixedClock` is kept.
 - **Commit:** `feat: add PII-safe logging and dependency wiring`
 
-### [ ] T21 — Tool registry
+### [x] T21 — Tool registry
 
 - **Goal:** Wrap the pure tools as LangChain tools with logging and summaries (design §6 conventions).
 - **Files:** `src/.../agent/__init__.py`, `src/.../agent/context.py`, `src/.../tools/registry.py`, `src/.../tools/schemas.py` (`summarize()` per output), `tests/unit/test_registry.py`
 - **FRs:** FR-09, FR-13 (session_id from runtime), FR-14 (summaries for `--show-tools`) (NFR-08)
 - **Acceptance criteria:**
-  - [ ] `build_tools(deps)` returns the 7 tools with the design names, docstrings and `args_schema`.
-  - [ ] Each wrapper times the call, logs `tool_call` (masked args, latency, size, summary, ok) and returns `model_dump_json(exclude_none=True)`.
-  - [ ] `request_human_handoff` reads `session_id` from `ToolRuntime[AgentContext]`; the model-facing schema has no `session_id`/`runtime`.
-  - [ ] `AgentContext` frozen dataclass.
+  - [x] `build_tools(deps)` returns the 7 tools with the design names, docstrings and `args_schema`.
+  - [x] Each wrapper times the call, logs `tool_call` (masked args, latency, size, summary, ok) and returns `model_dump_json(exclude_none=True)`.
+  - [x] `request_human_handoff` reads `session_id` from `ToolRuntime[AgentContext]`; the model-facing schema has no `session_id`/`runtime`.
+  - [x] `AgentContext` frozen dataclass.
 - **Tests:** 7 tool names; each schema matches its Input model; invoking `search_products` returns JSON with 12 items; handoff schema hides runtime; a log record is emitted with masked email for `get_order_status`; each `summarize()` produces one line.
 - **Commit:** `feat: register tools as LangChain tools with logging`
 
-### [ ] T22 — Chat model factory and retry policy
+### [x] T22 — Chat model factory and retry policy
 
 - **Goal:** Provider-agnostic model creation and retries (design §4, §14).
 - **Files:** `src/.../llm.py`, `tests/unit/test_llm.py`
 - **FRs:** — (NFR-04, NFR-05)
 - **Acceptance criteria:**
-  - [ ] `build_chat_model(settings)` via `init_chat_model`; missing package → "run `uv sync --extra <provider>`".
-  - [ ] `required_api_key(llm_model)` and `check_api_key(settings)` (Ollama needs none).
-  - [ ] `is_retryable(exc)` and `invoke_with_retry(model, messages, settings)` with tenacity and `llm_retry` log events.
+  - [x] `build_chat_model(settings)` via `init_chat_model`; missing package → "run `uv sync --extra <provider>`".
+  - [x] `required_api_key(llm_model)` and `check_api_key(settings)` (Ollama needs none).
+  - [x] `is_retryable(exc)` and `invoke_with_retry(model, messages, settings)` with tenacity and `llm_retry` log events.
 - **Tests:** provider → key mapping; missing key raises with variable name; `is_retryable` for fake exceptions with `status_code` 429/503, a `ResourceExhausted` class name, and a 401 (not retryable); `invoke_with_retry` retries a fake model that fails twice with 429 then succeeds (wait patched to 0); unknown provider package error message.
 - **Commit:** `feat: add provider-agnostic chat model with retries`
 
-### [ ] T23 — System prompt
+### [x] T23 — System prompt
 
 - **Goal:** The Lia system prompt with the current-context block (design §9).
 - **Files:** `src/.../agent/prompts.py`, `tests/unit/test_prompts.py`
 - **FRs:** FR-04, FR-06, FR-07, FR-08, FR-09, FR-10, FR-11, FR-13 (prompt rules) (NFR-01)
 - **Acceptance criteria:**
-  - [ ] `SYSTEM_PROMPT` verbatim from design §9; `PROMPT_VERSION` constant.
-  - [ ] `build_system_prompt(settings, clock)` fills reference date, pt-BR weekday and the simulated note only when `STORE_TODAY` is set.
-  - [ ] No store facts beyond the scope rule (no prices, address, phone in the template).
+  - [x] `SYSTEM_PROMPT` verbatim from design §9; `PROMPT_VERSION` constant.
+  - [x] `build_system_prompt(settings, clock)` fills reference date, pt-BR weekday and the simulated note only when `STORE_TODAY` is set.
+  - [x] No store facts beyond the scope rule (no prices, address, phone in the template).
 - **Tests:** with `STORE_TODAY=2026-03-23` → "2026-03-23 (segunda-feira)" and simulated note; without it → FixedClock date in America/Campo_Grande and no note; template contains none of the canonical address/phone strings.
 - **Commit:** `feat: add Lia system prompt`
 
-### [ ] T24 — Agent graph
+### [x] T24 — Agent graph
 
 - **Goal:** Explicit `StateGraph` agent ⇄ `ToolNode` with checkpointing (design §8).
 - **Files:** `src/.../agent/graph.py`, `tests/fakes.py` (scripted fake chat model), `tests/unit/test_graph_wiring.py`
 - **FRs:** FR-07, FR-09, FR-11, FR-12
 - **Acceptance criteria:**
-  - [ ] `build_graph(deps, checkpointer, model=None)`; the system prompt is prepended per call and not stored in state.
-  - [ ] `ToolNode(handle_tool_errors=True)`; `run_config(session_id, settings)` sets `thread_id` and `recursion_limit = 2 * max_tool_rounds + 1`.
-  - [ ] `run_turn(graph, session_id, text)` returns the reply or the fixed fallback on `GraphRecursionError`; logs `turn_start` / `turn_end` / `llm_call`.
+  - [x] `build_graph(deps, checkpointer, model=None)`; the system prompt is prepended per call and not stored in state.
+  - [x] `ToolNode(handle_tool_errors=True)`; `run_config(session_id, settings)` sets `thread_id` and `recursion_limit = 2 * max_tool_rounds + 1`.
+  - [x] `run_turn(graph, session_id, text)` returns the reply or the fixed fallback on `GraphRecursionError`; logs `turn_start` / `turn_end` / `llm_call`.
 - **Tests (fake model, no LLM):** tool call → ToolMessage → final answer; two parallel tool calls both executed; a tool raising returns an error ToolMessage; endless tool calls → fallback reply; checkpoint resume on a temp `SqliteSaver` file across two graph instances; state never contains a `SystemMessage`.
 - **Commit:** `feat: build LangGraph agent with tool loop and checkpointing`
 
-### [ ] T25 — CLI `chat` with sessions
+### [x] T25 — CLI `chat` with sessions
 
 - **Goal:** Interactive Rich chat with new and resumed sessions (design §10, §11).
 - **Files:** `src/.../cli.py`, `src/.../sessions.py` (session ID, checkpointer helpers), `tests/unit/test_cli.py`
 - **FRs:** FR-12, FR-14 (chat) (NFR-06)
 - **Acceptance criteria:**
-  - [ ] Start-up: `export_provider_env`, logging, API key check (exit 2), `build_deps`, `validate`, index auto-build with notice.
-  - [ ] `chat [--session ID] [--new] [--store-today] [--verbose]`: header panel, new session ID printed, `--session` resumes and shows the last 3 exchanges, unknown ID is an error.
-  - [ ] Spinner "Lia está digitando…", replies as Markdown panels; `/sair`, `/exit`, `/nova`, `/new`, `/ajuda`, `/help`; Ctrl-C cancels a turn, Ctrl-D exits.
-  - [ ] Retry-exhausted and other LLM errors show the design §14 messages.
+  - [x] Start-up: `export_provider_env`, logging, API key check (exit 2), `build_deps`, `validate`, index auto-build with notice.
+  - [x] `chat [--session ID] [--new] [--store-today] [--verbose]`: header panel, new session ID printed, `--session` resumes and shows the last 3 exchanges, unknown ID is an error.
+  - [x] Spinner "Lia está digitando…", replies as Markdown panels; `/sair`, `/exit`, `/nova`, `/new`, `/ajuda`, `/help`; Ctrl-C cancels a turn, Ctrl-D exits.
+  - [x] Retry-exhausted and other LLM errors show the design §14 messages.
 - **Tests:** session ID format; `CliRunner` with a fake model via a monkeypatched factory: one exchange then `/sair`; resume prints prior turns; unknown session exits non-zero; missing key exits 2 with the variable name.
 - **Commit:** `feat: add interactive chat command with persistent sessions`
 
-### [ ] T26 — `--show-tools` trace and `sessions` command
+### [x] T26 — `--show-tools` trace and `sessions` command
 
 - **Goal:** Visible, masked tool trace and session listing.
 - **Files:** `src/.../cli.py`, `src/.../sessions.py`, `tests/unit/test_cli.py`
 - **FRs:** FR-12 (list), FR-14 (`--show-tools`, sessions)
 - **Acceptance criteria:**
-  - [ ] With `--show-tools`, `graph.stream(stream_mode="updates")` prints each tool call with masked args and its one-line summary.
-  - [ ] `emporio sessions` lists thread IDs with last update time and message count.
+  - [x] With `--show-tools`, `graph.stream(stream_mode="updates")` prints each tool call with masked args and its one-line summary.
+  - [x] `emporio sessions` lists thread IDs with last update time and message count.
 - **Tests:** fake-model chat with `--show-tools` prints `get_order_status` with `le***@jmail.com` and never the raw email; `sessions` lists two sessions created in a temp DB.
 - **Commit:** `feat: add tool trace and sessions listing to the CLI`
 
-### [ ] T27 — Transcript export
+### [x] T27 — Transcript export
 
 - **Goal:** Markdown transcripts for examples (design §11).
 - **Files:** `src/.../export.py`, `src/.../cli.py`, `tests/unit/test_export.py`
 - **FRs:** FR-14 (export, `/export`)
 - **Acceptance criteria:**
-  - [ ] `emporio export --session ID [--out] [--title] [--mask-user]` and in-chat `/exportar` / `/export`.
-  - [ ] Header with model, `STORE_TODAY`, session and export time; `<details>` tool blocks with masked args and summaries; customer text as typed unless `--mask-user`.
+  - [x] `emporio export --session ID [--out] [--title] [--mask-user]` and in-chat `/exportar` / `/export`.
+  - [x] Header with model, `STORE_TODAY`, session and export time; `<details>` tool blocks with masked args and summaries; customer text as typed unless `--mask-user`.
 - **Tests:** export a fake-model session → file contains title, header lines, "**Cliente:**", "**Lia:**", masked tool args; `--mask-user` masks the email in customer text.
 - **Commit:** `feat: export sessions as Markdown transcripts`
 

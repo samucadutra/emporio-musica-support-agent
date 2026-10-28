@@ -86,6 +86,13 @@ class ProductSearchResult(BaseModel):
     note: str | None = None
     closest_matches: list[ProductSummary] = []  # only when total == 0 and the query names a product
 
+    def summarize(self) -> str:
+        if self.total == 0:
+            return f"0 results · {self.note or 'no match'}"
+        ids = ", ".join(str(item.product_id) for item in self.items[:3])
+        more = ", …" if self.shown > 3 else ""
+        return f"{self.total} results · {ids}{more}"
+
 
 class ProductDetailsInput(BaseModel):
     product_id: int | None = Field(
@@ -134,6 +141,18 @@ class ProductDetailsResult(BaseModel):
     product: ProductDetails | None = None
     candidates: list[ProductSummary] = []  # ambiguous or fuzzy name: ask which one
 
+    def summarize(self) -> str:
+        if self.product is None:
+            return f"not found · {len(self.candidates)} candidates"
+        product = self.product
+        price = product.promotion.final_price if product.promotion else product.price
+        parts = [str(product.product_id), product.availability, price.fmt]
+        if product.promotion:
+            parts.append(f"-{product.promotion.discount_percent}%")
+        if product.pix_price:
+            parts.append(f"pix {product.pix_price.fmt}")
+        return " · ".join(parts)
+
 
 class OrderStatusInput(BaseModel):
     order_id: int = Field(ge=1, description="Order number given by the customer.")
@@ -179,6 +198,16 @@ class OrderStatusResult(BaseModel):
     order: VerifiedOrder | None = None
     message: str | None = None  # "not_found_or_not_verified" when verified is False
 
+    def summarize(self) -> str:
+        if self.order is None:
+            return "not verified"
+        parts = ["verified", self.order.status_label]
+        if self.order.is_late:
+            parts.append("late")
+        if self.order.windows is not None:
+            parts.append("open: " + (", ".join(self.order.windows.open_now) or "none"))
+        return " · ".join(parts)
+
 
 class OpeningHours(BaseModel):
     days: str  # "Segunda a Sexta-feira"
@@ -201,6 +230,13 @@ class StoreInfo(BaseModel):
     next_opening: datetime | None  # when closed
     closes_at: datetime | None  # when open
     source_sections: list[str]  # ["1.2", "2", "7"]
+
+    def summarize(self) -> str:
+        if self.open_now and self.closes_at:
+            return f"open now · closes {self.closes_at:%H:%M}"
+        if self.next_opening:
+            return f"closed · opens {self.next_opening:%Y-%m-%d %H:%M}"
+        return "closed"
 
 
 HandoffReason = Literal["complaint", "cancellation", "return", "freight_quote", "unknown", "other"]
@@ -231,6 +267,11 @@ class HandoffTicket(BaseModel):
     next_opening: datetime | None
     response_time_note: str | None  # complaints only (§7.3)
 
+    def summarize(self) -> str:
+        if self.team_available_now or self.next_opening is None:
+            return f"ticket {self.ticket_id} · team available"
+        return f"ticket {self.ticket_id} · team back {self.next_opening:%Y-%m-%d %H:%M}"
+
 
 class SearchPoliciesInput(BaseModel):
     question: str = Field(
@@ -245,6 +286,9 @@ class SearchPoliciesInput(BaseModel):
 class PolicySearchResult(BaseModel):
     chunks: list[PolicyChunk]  # best first
 
+    def summarize(self) -> str:
+        return ", ".join(chunk.section_number for chunk in self.chunks) or "no sections"
+
 
 class CategorySummary(BaseModel):
     category_id: int
@@ -255,3 +299,7 @@ class CategorySummary(BaseModel):
 
 class CategoryListResult(BaseModel):
     categories: list[CategorySummary]
+
+    def summarize(self) -> str:
+        available = sum(1 for category in self.categories if category.available_count)
+        return f"{len(self.categories)} categories · {available} with products available"

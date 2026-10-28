@@ -90,6 +90,8 @@ src/emporio_musica_support_agent/
         cases.py         # YAML case schema (Pydantic) + loader
         harness.py       # run cases, check expectations
         report.py        # Markdown report
+    sessions.py          # session IDs; read/list sessions from the checkpointer
+    export.py            # Markdown transcripts of saved sessions
     cli.py               # Typer app
 tests/
     conftest.py          # repo fixture, FixedClock, markers, skip-without-key
@@ -107,7 +109,7 @@ var/                     # gitignored: agent.db, chroma/, models/, handoffs.json
 
 Rules:
 - Tool logic lives in plain functions that take their dependencies as arguments, e.g. `search_products(repo, params) -> ProductSearchResult`. Unit tests call these directly, without LangChain or an LLM. `tools/registry.py` wraps them as LangChain tools.
-- `app.build_deps(settings, clock=None) -> Deps` builds the Repository, PolicyIndex, HandoffLog and Clock once. `Deps` is a frozen dataclass passed down explicitly. There are no module-level singletons.
+- `app.build_deps(settings, clock=None, embeddings=None) -> Deps` builds the Repository, PolicyIndex (via `app.build_policy_index(settings, embeddings)`), HandoffLog and Clock once, and creates the `var/` folders. `embeddings` defaults to the local `FastEmbedEmbeddings`; tests pass a fake. `Deps` is a frozen dataclass passed down explicitly. There are no module-level singletons.
 - The console script becomes `emporio = "emporio_musica_support_agent.cli:app"`, replacing the template `main`.
 - `.gitignore` gets `var/`.
 
@@ -356,7 +358,10 @@ class Repository:
 
 Conventions for every tool:
 - **Pure function** in `tools/<module>.py` with signature `fn(deps..., params: <Input>) -> <Output>`. Unit tests call it directly.
-- **LangChain wrapper** in `tools/registry.py`: `StructuredTool.from_function(func=..., name=..., description=<docstring>, args_schema=<Input>)`. The wrapper times the call, logs it (§12) and returns `output.model_dump_json(exclude_none=True)`.
+- **LangChain wrapper** in `tools/registry.py`: `StructuredTool.from_function(func=..., name=..., description=<docstring>, args_schema=<Input>, response_format="content_and_artifact")`.
+  - The wrapper takes a hidden `runtime: ToolRuntime[AgentContext]`. LangChain injects it and keeps it out of the model's schema, so every `tool_call` log has `session_id`, and `request_human_handoff` gets the session without the model supplying it.
+  - It times the call, logs it (§12) and returns `output.model_dump_json(exclude_none=True)` as the content. The one-line `output.summarize()` goes in the `ToolMessage` artifact, which is checkpointed with the messages. That's where the `--show-tools` trace and the transcript export read it from.
+  - `list_categories` and `get_store_info` take a `NoInput` model with one hidden injected field. LangChain calls a tool whose schema has no fields with no keyword arguments, which would drop the injected runtime.
 - **The docstring is the model's manual.** It's in English, says when to call and when not to, and names the fields the model must use verbatim. Field descriptions in the Input models (`Field(description=...)`) become the JSON schema the model sees.
 - **Errors.** Expected outcomes (not found, not verified, empty) are normal results with a flag, never exceptions. Unexpected exceptions are caught by `ToolNode(handle_tool_errors=True)` and returned as an error ToolMessage. The prompt treats that like "no information" (FR-09). Pydantic validation errors (e.g. `max_price < min_price`) come back as error text, so the model can fix the call.
 - Money fields come in pairs: `*_brl: float` and `*_fmt: str`.
@@ -813,7 +818,8 @@ class AgentState(MessagesState):
 class AgentContext:
     session_id: str
 
-def build_graph(deps: Deps, checkpointer: BaseCheckpointSaver) -> CompiledStateGraph:
+def build_graph(deps: Deps, checkpointer: BaseCheckpointSaver,
+                model: BaseChatModel | None = None) -> CompiledStateGraph:  # model: tests pass a fake
     tools = build_tools(deps)
     model = build_chat_model(deps.settings).bind_tools(tools)
 
@@ -832,7 +838,8 @@ def build_graph(deps: Deps, checkpointer: BaseCheckpointSaver) -> CompiledStateG
 ```
 
 - **ReAct loop:** the model reasons, calls tools (possibly several in parallel in one step), sees the results, and repeats until it answers without tool calls.
-- **Max tool iterations:** `max_tool_rounds = 6`. Each run passes `config={"recursion_limit": 2 * max_tool_rounds + 1, "configurable": {"thread_id": session_id}}`. Every question in the PRD needs at most 2 rounds (e.g. verify, then policy), so 6 leaves room for a retry after a bad argument without letting a confused model loop and burn quota. On `GraphRecursionError` the CLI prints a fixed reply: "Desculpe, não consegui concluir sua consulta agora. Posso passar seu atendimento para a nossa equipe?" The turn is logged as `recursion_limit`.
+- **Max tool iterations:** `max_tool_rounds = 6`. Each run passes `config={"recursion_limit": 2 * max_tool_rounds + 1, "configurable": {"thread_id": session_id}}`. Every question in the PRD needs at most 2 rounds (e.g. verify, then policy), so 6 leaves room for a retry after a bad argument without letting a confused model loop and burn quota. On `GraphRecursionError`, `run_turn` returns a fixed reply: "Desculpe, não consegui concluir sua consulta agora. Posso passar seu atendimento para a nossa equipe?" The turn is logged as `recursion_limit`. Before returning, it answers any dangling AI tool calls with error `ToolMessage`s and saves the fallback reply to the state (`update_state(..., as_node="agent")`). Providers reject a history in which a tool call has no result, so without this the next turn would fail.
+- **`run_turn(graph, settings, session_id, text, on_update=None) -> str`** always runs `graph.stream(..., context=AgentContext(session_id), stream_mode="updates")`. It passes each node update to `on_update`, which the CLI's `--show-tools` trace uses, and logs `turn_start`/`turn_end`. Any other exception is logged with outcome `llm_error` and re-raised for the CLI to explain.
 - **The system prompt isn't stored in state.** It's prepended on every model call, so a resumed session always gets the current prompt version and date. The checkpoint holds only human, AI and tool messages.
 - **No history trimming in the prototype.** Sessions are short, and Gemini Flash's context is far larger than any realistic chat. Trimming has to keep AI tool calls and their ToolMessages together, so it's listed as future work instead of done naively.
 
@@ -986,6 +993,7 @@ Design notes:
 - `emporio chat --session <id>` resumes it: it loads `graph.get_state(config)` and prints the last 3 exchanges (dimmed) before the prompt. An unknown ID is an error, not a silent new session.
 - `--new` is accepted for explicitness and is the default. In-chat, `/new` starts a fresh thread without restarting.
 - `emporio sessions` lists the thread IDs found in the checkpointer (`checkpointer.list(None)`), with their last update time and number of messages.
+- `sessions.py` reads messages straight from the checkpointer (`get_tuple`, `list`), so `sessions` and `export` need no model or API key.
 - The checkpointer persists across restarts (FR-12). Deleting `var/agent.db` clears history.
 
 ---
@@ -1006,7 +1014,9 @@ Chat screen (Rich):
 - A header panel with "Empório da Música · Lia", the model (`LLM_MODEL`), the reference date (and whether it's simulated), the session ID and "digite /sair para encerrar".
 - The prompt is `Você ›`. While the graph runs, a `Status` spinner shows "Lia está digitando…".
 - Replies render as `rich.markdown.Markdown` in a panel labeled "Lia".
-- With `--show-tools`, the CLI streams with `graph.stream(..., stream_mode="updates")` and prints each tool call as it happens: a dim panel `🔧 get_order_status {"order_id": 7, "email": "le***@jmail.com"}` and a one-line result summary (`verified=True · status=entregue · windows open: garantia_legal`). Arguments go through `privacy.mask_pii`. Each tool's summary comes from a `summarize()` function next to its output model.
+- With `--show-tools`, the CLI streams with `graph.stream(..., stream_mode="updates")` and prints each tool call as it happens: a dim line `🔧 get_order_status {"order_id": 7, "email": "le***@jmail.com"}` and a one-line result summary (`→ verified · entregue · open: garantia_legal`). Arguments go through `privacy.mask_pii`. Each tool's summary comes from a `summarize()` method on its output model and travels as the `ToolMessage` artifact (§6).
+- **Start-up:** `chat` runs `export_provider_env`, `configure` logging, the API-key check, `build_deps`, `validate` and the index auto-build, in that order. Any failure exits with code 2 and names the problem (the key variable, the missing file, the failed checks, or `emporio ingest`). An unknown `--session` exits with code 1.
+- **Testing seams:** `cli.make_embeddings(settings)` and `cli.make_chat_model(settings)` are plain functions. CLI tests monkeypatch them with fake embeddings and a scripted chat model.
 - In-chat commands: `/sair` or `/exit` quits, `/nova` or `/new` starts a new session, `/exportar [arquivo]` or `/export [file]` exports the current session, `/ajuda` or `/help` lists commands.
 - Ctrl-C during a reply cancels that turn; Ctrl-D exits.
 
@@ -1034,15 +1044,15 @@ Transcript export (`examples/*.md`) is built from the checkpointed messages:
 **Lia:** …
 ```
 
-Customer messages are exported as typed. The examples use the synthetic test data, and tool arguments are masked. That's an explicit choice so the examples stay readable, documented in the README. `--mask-user` masks customer messages too.
+The transcript's `Model:` line is `LLM_MODEL` at export time, because sessions don't record which model produced them. Customer messages are exported as typed. The examples use the synthetic test data, and tool arguments are masked. That's an explicit choice so the examples stay readable, documented in the README. `--mask-user` masks customer messages too.
 
 ---
 
 ## 12. Observability
 
-- **Logging:** stdlib `logging`, configured in `logging_setup.configure(settings, verbose)`.
+- **Logging:** stdlib `logging`, configured in `logging_setup.configure(settings, verbose)`. Only the package logger (`emporio_musica_support_agent`, `propagate=False`) is configured, so library noise stays out of the JSON log. Events are written with `log_event(logger, event, **fields)`. The fields travel under one `extra["fields"]` dict, because names like `args` are reserved `LogRecord` attributes.
   - A JSON-lines file handler writes to `var/logs/agent.jsonl` at `LOG_LEVEL`. A Rich console handler shows WARNING and above, or INFO with `--verbose`.
-  - A `PIIMaskingFilter` is attached to every handler. It runs `privacy.mask_pii` over the message and the string fields of `extra`, so a careless log call still can't leak an email or phone (NFR-02).
+  - A `PIIMaskingFilter` is attached to every handler. It runs `privacy.mask_pii` over the message and every string inside the event fields (nested dicts and lists included), so a careless log call still can't leak an email or phone (NFR-02).
 - **Events** (`event` field plus structured fields):
 
 | Event | Fields |
