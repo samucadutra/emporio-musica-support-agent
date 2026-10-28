@@ -613,11 +613,16 @@ class PolicyChunk(BaseModel):
 class PolicySearchResult(BaseModel):
     chunks: list[PolicyChunk]   # best first
 
-def search_policies(index: PolicyIndex, params: SearchPoliciesInput) -> PolicySearchResult: ...
+class PolicySearcher(Protocol):          # PolicyIndex in the app; a small fake in unit tests
+    def search(self, query: str, k: int) -> list[PolicyChunk]: ...
+
+def search_policies(index: PolicySearcher, params: SearchPoliciesInput) -> PolicySearchResult: ...
 ```
 
 Docstring:
-> Search the store's policy manual (version 2.1). Use for rules and conditions: exchanges, returns, withdrawal ("arrependimento"), defects, warranty, payment methods, installment rules, shipping and delivery times, tracking, promotion rules, privacy/LGPD. Write the query in Portuguese. Answer ONLY from the returned text and cite the section, e.g. "(seção 4.1)". If the chunks don't answer the question, say the policy doesn't cover it and offer to pass the case to the team. Never complete the answer from general knowledge or consumer law. For the address, phone or opening hours, prefer `get_store_info`.
+> Search the store's policy manual (version 2.1). Use for rules and conditions: exchanges, returns, withdrawal ("arrependimento"), defects, warranty, payment methods, installment rules, shipping and delivery times, tracking, promotion rules, privacy/LGPD. Write the query in Portuguese. Describe the situation in general policy terms rather than specifics, e.g. 'frete para outra cidade' instead of a city name. Answer ONLY from the returned text and cite the section, e.g. "(seção 4.1)". If the chunks don't answer the question, say the policy doesn't cover it and offer to pass the case to the team. Never complete the answer from general knowledge or consumer law. For the address, phone or opening hours, prefer `get_store_info`.
+
+`PolicyChunk` is defined in `rag/index.py` and re-used here. The sentence about general terms was added after measuring retrieval: the embedding model can't tell that a bare city name ("frete para Dourados") is a city, so §5.2 didn't rank. "frete para outra cidade" puts it first. The tool returns chunks sorted by score, best first.
 
 ### 6.6 `get_store_info` (FR-05, FR-13)
 
@@ -992,7 +997,7 @@ Typer app `emporio` (`uv run emporio …`):
 | Command | Options | Behavior |
 |---|---|---|
 | `chat` | `--session ID`, `--new`, `--show-tools`, `--store-today YYYY-MM-DD`, `--verbose` | Interactive chat (FR-14). `--store-today` overrides `STORE_TODAY` for this run. |
-| `ingest` | `--force` | Build or refresh the policy index; prints chunk count and manifest, or "up to date" (FR-14). |
+| `ingest` | `--force` | Build or refresh the policy index (FR-14). Prints "Indexed N policy chunks into <dir>" and the manifest as JSON, or "Policy index is up to date (N chunks)." A missing data file exits with code 1. |
 | `eval` | `--cases PATH` (default `evals/cases.yaml`), `--case ID` (repeatable), `--report PATH` (default `var/eval-report.md`) | Run the agent eval (§13). Exit code 1 if any case fails. |
 | `export` | `--session ID` (required), `--out PATH` (default `examples/<session>.md`), `--title TEXT` | Write a saved session as a Markdown transcript. |
 | `sessions` | | List saved sessions. |
@@ -1070,7 +1075,7 @@ Markers in `pyproject.toml`: `llm` (needs an API key) and `embeddings` (needs th
 | Policy facts (`unit/test_policy_facts.py`) | nothing (pypdf) | canonical facts and A-21 numbers in the extracted text; the D3 email fix applied |
 | Chunking (`unit/test_chunking.py`) | nothing | 26 chunks; every outline heading present; §7.2's "1. Saudação" doesn't start a chunk; §5.2 table and notes in one chunk across the page break; max chunk ≤ 1,800 characters; IDs deterministic |
 | Graph wiring (`unit/test_graph_wiring.py`) | nothing | a scripted fake chat model (a `BaseChatModel` subclass whose `bind_tools` returns itself and which replays preset `AIMessage`s with tool calls) drives the graph: tool → answer flow, parallel tool calls, recursion limit → fallback, checkpoint resume on a temp SQLite file |
-| Retrieval (`retrieval/test_policy_retrieval.py`, `embeddings`) | local model | hit@4 for: "me arrependi, posso devolver?" → 4.1; "posso parcelar em 10x?" → 3.1; "qual a garantia?" → 8.1; "horário de sábado" → 2; "frete para Dourados" → 5.2; "frete grátis em Campo Grande" → 5.1; "como rastrear meu pedido" → 5.3; "desconto do pix vale na promoção?" → 6.2; "o produto veio com defeito" → 4.2; "quero trocar por outra cor" → 4.3; "vocês vendem cordas?" → 1 or 7.1; "meus dados pessoais" → 9. The index is built in a temp dir; `ingest` twice → second is a no-op; changing the embedding model name → `stale`. |
+| Retrieval (`retrieval/test_policy_retrieval.py`, `embeddings`) | local model | hit@4 for: "me arrependi, posso devolver?" → 4.1; "posso parcelar em 10x?" → 3.1; "qual a garantia?" → 8.1; "horário de sábado" → 2; "frete para Dourados (outra cidade)" → 5.2 (phrased the way the tool docstring asks; the bare city name misses); "frete grátis em Campo Grande" → 5.1; "como rastrear meu pedido" → 5.3; "desconto do pix vale na promoção?" → 6.2; "o produto veio com defeito" → 4.2; "quero trocar por outra cor" → 4.3; "vocês vendem cordas?" → 1 or 7.1; "meus dados pessoais" → 9. The index is built in a temp dir; `ingest` twice → second is a no-op; changing the embedding model name → `stale`. Shared test doubles (`FakeEmbeddings`, and later the fake chat model) live in `tests/fakes.py`, importable through `pythonpath = ["tests"]` in the pytest config. |
 | Agent eval (`agent/test_agent_eval.py`, `llm`) | API key | the 15 PRD cases from `evals/cases.yaml` |
 
 **Eval cases (`evals/cases.yaml`):**

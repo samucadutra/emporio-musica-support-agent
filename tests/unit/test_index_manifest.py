@@ -1,42 +1,17 @@
 """PolicyIndex status, idempotent build and search, with fake embeddings (no download)."""
 
-import hashlib
 import json
-import math
 import shutil
 from pathlib import Path
 
 import pytest
-from langchain_core.embeddings import Embeddings
 
 from emporio_musica_support_agent.data.loader import policy_path
 from emporio_musica_support_agent.rag import index as index_module
 from emporio_musica_support_agent.rag.index import IndexNotReadyError, PolicyIndex
-from emporio_musica_support_agent.text import fold
+from fakes import FakeEmbeddings
 
-DIMENSIONS = 1024  # wide enough that word buckets rarely collide
 MODEL = "fake-model"
-
-
-class FakeEmbeddings(Embeddings):
-    """Deterministic hashed bag of words: texts sharing words get similar vectors.
-
-    Short words ("de", "a", "em") are skipped so they don't dominate the overlap.
-    """
-
-    def _vector(self, text: str) -> list[float]:
-        vector = [0.0] * DIMENSIONS
-        for word in (w for w in fold(text).split() if len(w) >= 4):
-            bucket = int(hashlib.md5(word.encode()).hexdigest(), 16) % DIMENSIONS
-            vector[bucket] += 1.0
-        norm = math.sqrt(sum(v * v for v in vector)) or 1.0
-        return [v / norm for v in vector]
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return [self._vector(t) for t in texts]
-
-    def embed_query(self, text: str) -> list[float]:
-        return self._vector(text)
 
 
 def make_index(chroma_dir: Path, pdf: Path, model: str = MODEL) -> PolicyIndex:

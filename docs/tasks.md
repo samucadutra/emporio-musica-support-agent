@@ -224,14 +224,14 @@ How to use this file:
 - **Tests:** unit (fake `Embeddings`, no download): missing → build → ok; second build is a no-op; changed model name or PDF hash → stale; interrupted build (no manifest) → stale. `embeddings`-marked: real build in a temp dir returns 26 chunks.
 - **Commit:** `feat: add local embeddings and persistent policy index`
 
-### [ ] T19 — `search_policies` tool, retrieval tests and `emporio ingest`
+### [x] T19 — `search_policies` tool, retrieval tests and `emporio ingest`
 
 - **Goal:** Expose policy retrieval as a tool and as the ingest command.
 - **Files:** `src/.../tools/schemas.py`, `src/.../tools/policies.py`, `src/.../cli.py`, `tests/retrieval/test_policy_retrieval.py`, `tests/unit/test_cli.py`
 - **FRs:** FR-06, FR-07, FR-14 (ingest)
 - **Acceptance criteria:**
-  - [ ] `SearchPoliciesInput`, `PolicyChunk`, `PolicySearchResult`; docstring per design §6.5.
-  - [ ] `emporio ingest [--force]` prints chunk count and manifest, or "up to date".
+  - [x] `SearchPoliciesInput`, `PolicyChunk`, `PolicySearchResult`; docstring per design §6.5.
+  - [x] `emporio ingest [--force]` prints chunk count and manifest, or "up to date".
 - **Tests:** `embeddings`-marked hit@4 for the 12 questions in design §13; unit: tool returns chunks sorted by score with a fake index; `CliRunner` ingest twice with a fake index → second says "up to date".
 - **Commit:** `feat: add search_policies tool and ingest command`
 

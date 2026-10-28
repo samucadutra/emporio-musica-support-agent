@@ -52,6 +52,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]  # shared test doubles: `from fakes import ...`
 addopts = "--strict-markers --import-mode=importlib"
 markers = [
     "llm: needs an LLM API key; skipped when the key is not set",

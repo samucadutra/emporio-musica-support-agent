@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 from emporio_musica_support_agent.data.cleaning import Availability
 from emporio_musica_support_agent.data.models import OrderStatus, ProductStatus
 from emporio_musica_support_agent.domain.windows import ReturnWindows
+from emporio_musica_support_agent.rag.index import PolicyChunk
 from emporio_musica_support_agent.text import format_brl, round_money
 
 
@@ -229,6 +230,20 @@ class HandoffTicket(BaseModel):
     team_available_now: bool
     next_opening: datetime | None
     response_time_note: str | None  # complaints only (§7.3)
+
+
+class SearchPoliciesInput(BaseModel):
+    question: str = Field(
+        description=(
+            "The customer's question rephrased as a short Portuguese search query, "
+            "e.g. 'prazo para devolução por arrependimento'."
+        )
+    )
+    k: int = Field(4, ge=1, le=8, description="Number of sections to return.")
+
+
+class PolicySearchResult(BaseModel):
+    chunks: list[PolicyChunk]  # best first
 
 
 class CategorySummary(BaseModel):
