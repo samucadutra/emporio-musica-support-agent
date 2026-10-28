@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # env_ignore_empty: `.env.example` ships `GOOGLE_API_KEY=`; an empty value means unset.
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_ignore_empty=True)
 
-    llm_model: str = "google_genai:gemini-2.5-flash"
+    llm_model: str = "google_genai:gemini-3.8-flash"
     llm_temperature: float = 0.2
     llm_timeout_s: float = 60
     llm_max_retries: int = 4

@@ -36,7 +36,7 @@ def write_env(tmp_path: Path, text: str) -> Path:
 def test_defaults() -> None:
     settings = Settings(_env_file=None)
 
-    assert settings.llm_model == "google_genai:gemini-2.5-flash"
+    assert settings.llm_model == "google_genai:gemini-3.8-flash"
     assert settings.llm_temperature == 0.2
     assert settings.llm_timeout_s == 60
     assert settings.llm_max_retries == 4

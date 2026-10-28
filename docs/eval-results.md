@@ -48,7 +48,6 @@ the runs were rate-limited.
 
 ## Follow-ups
 
-- Change the default `LLM_MODEL` (`config.py`, `.env.example`, design §3/§15, PRD) to a model new keys
-  can use; `gemini-3.8-flash` was the model Google recommended.
+- ~~Change the default `LLM_MODEL`~~ Done in T32: the default is now `google_genai:gemini-3.8-flash`.
 - Re-run `uv run emporio eval` on one Flash model with a billed key or after quota reset, to replace
   this split run with a single report.

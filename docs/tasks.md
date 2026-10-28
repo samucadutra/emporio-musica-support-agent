@@ -366,37 +366,37 @@ How to use this file:
 - **Tests:** none new (unit tests still green; `uv run pytest -m llm` matches the report).
 - **Commit:** `fix: tune prompt and tool docstrings from eval results`
 
-### [ ] T31 — Example conversations
+### [x] T31 — Example conversations
 
 - **Goal:** The 5 PRD §12 transcripts recorded from the real CLI.
 - **Files:** `examples/01-violoes-ate-1000.md`, `examples/02-endereco-e-horario.md`, `examples/03-preco-promocao-multiturno.md`, `examples/04-devolucao-pedido-7.md` (both dates), `examples/05-fora-de-escopo.md`
 - **FRs:** FR-01, FR-02, FR-05, FR-06, FR-07, FR-08, FR-11, FR-14 (export)
 - **Acceptance criteria:**
-  - [ ] Each file exported with `emporio export`, header states model and `STORE_TODAY`.
-  - [ ] Facts in each transcript match PRD §12 (12 violões; R$ 2.089,05 and R$ 439,20; order 7 inside at 2026-02-20 and outside at 2026-03-23).
-  - [ ] No raw customer email/phone in tool blocks.
+  - [x] Each file exported with `emporio export`, header states model and `STORE_TODAY`.
+  - [x] Facts in each transcript match PRD §12 (12 violões; R$ 2.089,05 and R$ 439,20; order 7 inside at 2026-02-20 and outside at 2026-03-23).
+  - [x] No raw customer email/phone in tool blocks.
 - **Tests:** `tests/unit/test_examples.py`: 5 files exist; no tool block contains an unmasked customer email.
 - **Commit:** `docs: add example conversations`
 
-### [ ] T32 — README
+### [x] T32 — README
 
 - **Goal:** Reviewer-ready README covering every challenge deliverable (PRD §11).
 - **Files:** `README.md`, `CLAUDE.md` (fill "App commands"), `docs/ai-usage-log.md`
 - **FRs:** — (NFR-06; PRD §11)
 - **Acceptance criteria:**
-  - [ ] Sections: Overview, Setup (fresh clone → chat in 4 commands), Configuration (providers, `STORE_TODAY`, phone-matching rule), Usage (all CLI commands), Design decisions, Assumptions (link to PRD §4), Evaluation (how to run, latest results), Limitations and future work, AI-assisted workflow, LangSmith privacy warning.
-  - [ ] Setup steps verified from a fresh clone in a temp dir.
+  - [x] Sections: Overview, Setup (fresh clone → chat in 4 commands), Configuration (providers, `STORE_TODAY`, phone-matching rule), Usage (all CLI commands), Design decisions, Assumptions (link to PRD §4), Evaluation (how to run, latest results), Limitations and future work, AI-assisted workflow, LangSmith privacy warning.
+  - [x] Setup steps verified from a fresh clone in a temp dir.
 - **Tests:** none (docs only); `uv run pytest` still green.
 - **Commit:** `docs: write README`
 
-### [ ] T33 — (Optional, stretch) Streamlit UI
+### [x] T33 — (Optional, stretch) Streamlit UI
 
 - **Goal:** A minimal web chat over the same graph, only if time allows.
 - **Files:** `src/.../ui/streamlit_app.py`, `pyproject.toml` (`ui` extra), `README.md`
 - **FRs:** FR-11, FR-12 (same graph and checkpointer); stretch goal from PRD §2
 - **Acceptance criteria:**
-  - [ ] `uv sync --extra ui` then `uv run streamlit run …` opens a chat with session ID shown and resumable.
-  - [ ] Optional tool-trace expander with masked args; no new business logic (reuses `build_deps`, `build_graph`, `run_turn`).
+  - [x] `uv sync --extra ui` then `uv run streamlit run …` opens a chat with session ID shown and resumable.
+  - [x] Optional tool-trace expander with masked args; no new business logic (reuses `build_deps`, `build_graph`, `run_turn`).
 - **Tests:** import smoke test skipped when `streamlit` isn't installed.
 - **Commit:** `feat: add optional Streamlit chat UI`
 

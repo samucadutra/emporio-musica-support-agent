@@ -39,7 +39,16 @@ uv run ruff check --fix    # lint
 uv run ruff format         # format
 ```
 
-App commands: TBD.
+App commands:
+
+```bash
+uv run emporio ingest                    # build the policy index (idempotent)
+uv run emporio chat [--show-tools] [--session ID] [--store-today YYYY-MM-DD]
+uv run emporio eval [--case ID ...]      # agent eval, writes var/eval-report.md
+uv run emporio export --session ID       # Markdown transcript
+uv run emporio sessions                  # list saved sessions
+uv run pytest -m "not llm"               # unit tests only (plain pytest also runs live-model tests when a key is set)
+```
 
 ## Code style
 

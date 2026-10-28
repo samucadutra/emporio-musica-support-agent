@@ -7,7 +7,7 @@ References: "FR-nn", "NFR-nn" and "A-nn" point to the PRD. "§n.n" points to the
 Decisions taken for this document (2026-10-27):
 - Embeddings run locally with **fastembed** (ONNX), using `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`.
 - The agent is an **explicit LangGraph `StateGraph`** (agent node ⇄ `ToolNode`), not a prebuilt agent.
-- The default chat model is `google_genai:gemini-2.5-flash`.
+- The default chat model is `google_genai:gemini-3.8-flash` (changed on 2026-10-28 from `gemini-2.5-flash`, which Google no longer serves to new API keys).
 - The current date reaches the agent **through the system prompt**. Opening state (`open_now`) comes from a tool (§8).
 
 ---
@@ -93,6 +93,7 @@ src/emporio_musica_support_agent/
     sessions.py          # session IDs; read/list sessions from the checkpointer
     export.py            # Markdown transcripts of saved sessions
     cli.py               # Typer app
+    ui/                  # optional (T33): turns.py (pure trace/turn helpers), streamlit_app.py
 tests/
     conftest.py          # repo fixture, FixedClock, markers, skip-without-key
     unit/                # test_cleaning, test_pricing, test_windows, test_store,
@@ -114,7 +115,7 @@ Rules:
 - `.gitignore` gets `var/`.
 
 Dependencies (runtime): `langgraph`, `langchain`, `langchain-core`, `langchain-google-genai`, `langgraph-checkpoint-sqlite`, `chromadb` (used directly, §7), `fastembed`, `pypdf`, `pydantic`, `pydantic-settings`, `typer`, `rich`, `pyyaml`, `tenacity`, `tzdata`.
-Optional extras for other providers: `openai` → `langchain-openai`, `anthropic` → `langchain-anthropic`, `ollama` → `langchain-ollama`.
+Optional extras for other providers: `openai` → `langchain-openai`, `anthropic` → `langchain-anthropic`, `ollama` → `langchain-ollama`. The `ui` extra adds `streamlit` for the optional web chat (§11).
 Dev: `pytest`, `ruff`, plus the existing `pandas` (used only by `scripts/inspect_data.py`).
 
 ---
@@ -125,7 +126,7 @@ Dev: `pytest`, `ruff`, plus the existing `pandas` (used only by `scripts/inspect
 
 | Field | Env var | Type | Default | Notes |
 |---|---|---|---|---|
-| `llm_model` | `LLM_MODEL` | str | `google_genai:gemini-2.5-flash` | `provider:model`, passed to `init_chat_model` |
+| `llm_model` | `LLM_MODEL` | str | `google_genai:gemini-3.8-flash` | `provider:model`, passed to `init_chat_model` |
 | `llm_temperature` | `LLM_TEMPERATURE` | float | `0.2` | Low but non-zero; Gemini tool calling is steadier than at 0 |
 | `llm_timeout_s` | `LLM_TIMEOUT_S` | float | `60` | Per request |
 | `llm_max_retries` | `LLM_MAX_RETRIES` | int | `4` | Outer retry attempts for rate limits and 5xx (§14) |
@@ -154,7 +155,7 @@ LangChain provider classes read their keys from environment variables. pydantic-
 
 ```dotenv
 # --- Chat model (LangChain init_chat_model "provider:model") ---
-LLM_MODEL=google_genai:gemini-2.5-flash
+LLM_MODEL=google_genai:gemini-3.8-flash
 # LLM_MODEL=openai:gpt-4.1-mini        # needs: uv sync --extra openai
 # LLM_MODEL=anthropic:claude-haiku-4-5 # needs: uv sync --extra anthropic
 # LLM_MODEL=ollama:qwen3:8b            # needs: uv sync --extra ollama
@@ -205,7 +206,7 @@ EVAL_DELAY_S=4
 
 ```python
 init_chat_model(
-    settings.llm_model,            # "google_genai:gemini-2.5-flash"
+    settings.llm_model,            # "google_genai:gemini-3.8-flash"
     temperature=settings.llm_temperature,
     timeout=settings.llm_timeout_s,
     max_retries=2,                 # provider-native transport retries
@@ -1009,7 +1010,7 @@ Typer app `emporio` (`uv run emporio …`):
 | `chat` | `--session ID`, `--new`, `--show-tools`, `--store-today YYYY-MM-DD`, `--verbose` | Interactive chat (FR-14). `--store-today` overrides `STORE_TODAY` for this run. |
 | `ingest` | `--force` | Build or refresh the policy index (FR-14). Prints "Indexed N policy chunks into <dir>" and the manifest as JSON, or "Policy index is up to date (N chunks)." A missing data file exits with code 1. |
 | `eval` | `--cases PATH` (default `evals/cases.yaml`), `--case ID` (repeatable), `--report PATH` (default `var/eval-report.md`) | Run the agent eval (§13), after the same start-up as `chat`. Exit code 1 if any case fails; 2 for a bad cases file, an unknown `--case` or a start-up error. |
-| `export` | `--session ID` (required), `--out PATH` (default `examples/<session>.md`), `--title TEXT` | Write a saved session as a Markdown transcript. |
+| `export` | `--session ID` (required), `--out PATH` (default `examples/<session>.md`), `--title TEXT`, `--mask-user` | Write a saved session as a Markdown transcript. The header's `STORE_TODAY` comes from the environment, not from the `--store-today` the chat ran with, so set `STORE_TODAY` when exporting such a session. |
 | `sessions` | | List saved sessions. |
 
 Chat screen (Rich):
@@ -1027,7 +1028,7 @@ Transcript export (`examples/*.md`) is built from the checkpointed messages:
 ```markdown
 # Exemplo 4: Devolução por arrependimento (dentro do prazo)
 
-- Model: google_genai:gemini-2.5-flash
+- Model: google_genai:gemini-3.8-flash
 - STORE_TODAY: 2026-02-20
 - Session: 20260220-1015-a1b2 · Exported: 2026-10-27 15:02 (America/Campo_Grande)
 
@@ -1047,6 +1048,13 @@ Transcript export (`examples/*.md`) is built from the checkpointed messages:
 ```
 
 The transcript's `Model:` line is `LLM_MODEL` at export time, because sessions don't record which model produced them. Customer messages are exported as typed. The examples use the synthetic test data, and tool arguments are masked. That's an explicit choice so the examples stay readable, documented in the README. `--mask-user` masks customer messages too.
+
+
+**Streamlit UI (optional, T33).** `uv sync --extra ui`, then `uv run streamlit run src/emporio_musica_support_agent/ui/streamlit_app.py`. A minimal web chat over the same `build_deps`, `build_graph` and `run_turn`, with no business logic of its own.
+- `load_runtime()` (`st.cache_resource`) repeats the CLI start-up order (provider env, logging, key check, `build_deps`, `validate`, index auto-build) and opens one SQLite checkpointer; any failure is shown with `st.error`.
+- The session ID is kept in the URL (`?session=ID`) and shown in the sidebar. An unknown ID is an error; "Nova sessão" starts a new thread.
+- The page is drawn from the checkpointer on every run (`ui/turns.split_turns`), so a reload or a resumed session looks the same as a live one. `ui/turns.py` has no Streamlit import, so its tests run without the extra. With "Mostrar ferramentas" on, each turn has an expander with the same masked trace lines as `--show-tools`.
+- LLM errors use the CLI's messages (`INSTABILITY_MESSAGE` for retryable errors).
 
 ---
 
@@ -1162,7 +1170,7 @@ Only the `llm` tests need an API key. Retrieval tests need the embedding model d
 |---|---|---|---|---|
 | Agent framework | Explicit LangGraph `StateGraph` with `ToolNode` | `langchain.agents.create_agent`; a hand-written loop over raw SDKs; a router/classifier graph | Every step (prompt build, retry, tool execution, loop limit) is visible and testable; checkpointer and parallel tools come built in. Function calling with a ReAct loop lets the model route between data and policy itself, and the tool docstrings make the routing explicit. | Slightly more code than `create_agent`; routing quality depends on the model rather than a fixed classifier. |
 | Approach for data | Typed read-only tools over in-memory data | SQL agent over SQLite; pandas agent; putting data in the prompt | Tools enforce verification and privacy in code, and return pre-computed prices and windows. A SQL agent could query `customers` freely, write wrong joins, and can't enforce "same customer only". | Every new question type needs a tool. |
-| LLM | Gemini 2.5 Flash via `init_chat_model` | GPT-4.1-mini, Claude Haiku, local Ollama (Qwen/Llama) | Free tier, fast, good tool calling and Portuguese. Provider-agnostic config keeps switching to one env change. | Free-tier rate limits (retries, eval delay); some tool-calling quirks across providers. |
+| LLM | Gemini 3.8 Flash via `init_chat_model` | GPT-4.1-mini, Claude Haiku, local Ollama (Qwen/Llama) | Free tier, fast, good tool calling and Portuguese. Provider-agnostic config keeps switching to one env change. | Free-tier limits (about 20 requests per day per model, so a full eval run needs several models or a billed key; retries, eval delay); some tool-calling quirks across providers. |
 | Embeddings | Local fastembed, multilingual MiniLM | Gemini `gemini-embedding-001`; sentence-transformers with torch; OpenAI embeddings | No key or quota; deterministic tests; small install (ONNX, no torch); multilingual. | Lower quality than large API models (offset by 26 well-titled chunks); a one-time ~220 MB download. |
 | Policy retrieval | RAG behind `search_policies` (D10) | Whole policy in the system prompt (~3 K tokens); hybrid BM25 + vector | Keeps "consult policy" an explicit, testable agent decision, gives section citations, scales. | Can miss a section that full context would include; mitigated by retrieval tests and section-titled chunks. Full context is the documented fallback. |
 | Chunking | One chunk per numbered heading, no overlap, outline-validated | Fixed-size 500–1000 characters with 10–20% overlap; semantic chunking | Matches the policy's own structure; one citation per chunk; a new PDF version fails loudly instead of mis-chunking. | Tied to this document's outline; a new outline means updating `POLICY_OUTLINE`. |
