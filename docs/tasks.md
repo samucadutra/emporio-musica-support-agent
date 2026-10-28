@@ -330,27 +330,27 @@ How to use this file:
 - **Tests:** export a fake-model session → file contains title, header lines, "**Cliente:**", "**Lia:**", masked tool args; `--mask-user` masks the email in customer text.
 - **Commit:** `feat: export sessions as Markdown transcripts`
 
-### [ ] T28 — Eval case schema and cases file
+### [x] T28 — Eval case schema and cases file
 
 - **Goal:** The 15 PRD §10 cases as validated YAML (design §13).
 - **Files:** `src/.../evals/__init__.py`, `src/.../evals/cases.py`, `evals/cases.yaml`, `tests/unit/test_eval_cases.py`
 - **FRs:** FR-01…FR-13 (eval coverage, PRD §10)
 - **Acceptance criteria:**
-  - [ ] Pydantic `EvalCase` / `Expect` schema per design §13; `load_cases(path)`.
-  - [ ] 15 cases matching PRD §10, with `store_today` / `clock` where needed and PII in `must_not_include` for order cases.
-  - [ ] `check_expectations(case, tool_calls, replies)` with accent-folded, case-insensitive matching.
+  - [x] Pydantic `EvalCase` / `Expect` schema per design §13; `load_cases(path)`.
+  - [x] 15 cases matching PRD §10, with `store_today` / `clock` where needed and PII in `must_not_include` for order cases.
+  - [x] `check_expectations(case, tool_calls, replies)` with accent-folded, case-insensitive matching.
 - **Tests:** YAML loads with 15 unique IDs; every tool named in `must_call` exists in the registry; `check_expectations` pass/fail on hand-built inputs (substring, any-group, regex, `scope: all`, must-not-call).
 - **Commit:** `test: add agent eval case schema and cases`
 
-### [ ] T29 — Eval harness, report and `emporio eval`
+### [x] T29 — Eval harness, report and `emporio eval`
 
 - **Goal:** Run cases end to end and report pass/fail and latency (design §13).
 - **Files:** `src/.../evals/harness.py`, `src/.../evals/report.py`, `src/.../cli.py`, `tests/agent/test_agent_eval.py`, `tests/unit/test_eval_harness.py`
 - **FRs:** FR-14 (eval) (NFR-03)
 - **Acceptance criteria:**
-  - [ ] Per case: `Deps` with the case clock and `store_today`, temp checkpointer and handoff log, shared repo and index; `CaseResult`; LLM error → `error`; `EVAL_DELAY_S` between cases.
-  - [ ] `emporio eval [--cases] [--case] [--report]` prints a Rich table, writes `var/eval-report.md` (pass rate, p50/p95, model, prompt version, date), exit 1 on any failure.
-  - [ ] `tests/agent/test_agent_eval.py` parametrized over the YAML, marked `llm`, skipped without a key.
+  - [x] Per case: `Deps` with the case clock and `store_today`, temp checkpointer and handoff log, shared repo and index; `CaseResult`; LLM error → `error`; `EVAL_DELAY_S` between cases.
+  - [x] `emporio eval [--cases] [--case] [--report]` prints a Rich table, writes `var/eval-report.md` (pass rate, p50/p95, model, prompt version, date), exit 1 on any failure.
+  - [x] `tests/agent/test_agent_eval.py` parametrized over the YAML, marked `llm`, skipped without a key.
 - **Tests:** harness with the fake model on a 2-case YAML → one pass, one fail, report rendered; p50/p95 computed on known latencies; `llm` test skips cleanly without a key.
 - **Commit:** `feat: add eval harness, report and eval command`
 

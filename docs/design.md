@@ -1006,7 +1006,7 @@ Typer app `emporio` (`uv run emporio …`):
 |---|---|---|
 | `chat` | `--session ID`, `--new`, `--show-tools`, `--store-today YYYY-MM-DD`, `--verbose` | Interactive chat (FR-14). `--store-today` overrides `STORE_TODAY` for this run. |
 | `ingest` | `--force` | Build or refresh the policy index (FR-14). Prints "Indexed N policy chunks into <dir>" and the manifest as JSON, or "Policy index is up to date (N chunks)." A missing data file exits with code 1. |
-| `eval` | `--cases PATH` (default `evals/cases.yaml`), `--case ID` (repeatable), `--report PATH` (default `var/eval-report.md`) | Run the agent eval (§13). Exit code 1 if any case fails. |
+| `eval` | `--cases PATH` (default `evals/cases.yaml`), `--case ID` (repeatable), `--report PATH` (default `var/eval-report.md`) | Run the agent eval (§13), after the same start-up as `chat`. Exit code 1 if any case fails; 2 for a bad cases file, an unknown `--case` or a start-up error. |
 | `export` | `--session ID` (required), `--out PATH` (default `examples/<session>.md`), `--title TEXT` | Write a saved session as a Markdown transcript. |
 | `sessions` | | List saved sessions. |
 
@@ -1107,13 +1107,16 @@ Markers in `pyproject.toml`: `llm` (needs an API key) and `embeddings` (needs th
     regex: []
 ```
 
-Schema (`evals/cases.py`, Pydantic): `id`, `description`, `store_today: date | None`, `clock: datetime | None`, `turns: list[str]` (sent in order on one fresh thread), and `expect` with `must_call`, `must_not_call` (tool names across the whole case), `must_include`, `must_include_any` (list of alternative groups), `must_not_include`, `regex` (all checked on the final reply, or on all replies with `scope: all`). Checks are deterministic, with no LLM judge (PRD §10). Text is accent-folded before comparison, so "devolução" and "devolucao" both pass.
+Schema (`evals/cases.py`, Pydantic): `id`, `description`, `store_today: date | None`, `clock: datetime | None` (must carry a UTC offset), `turns: list[str]` (sent in order on one fresh thread), and `expect` with `must_call`, `must_not_call` (tool names across the whole case), `must_include`, `must_include_any` (list of alternative groups), `must_not_include`, `regex` and `scope` (`last` by default, or `all`). `scope` picks the reply the text checks run on: the final reply, or all replies joined. Checks are deterministic, with no LLM judge (PRD §10). Text is accent-folded and lowercased before comparison, so "devolução" and "devolucao" both pass; regexes run on that folded text, so they are written lowercase without accents. `check_expectations(case, tool_calls, replies)` takes tool names (`list[str]`) and returns the failure messages. `load_cases` raises `EvalCaseError` for an unreadable file, an invalid case (bad regex, naive clock) or duplicate IDs.
 
 **Harness (`evals/harness.py`):**
 - For each case it builds `Deps` with the case's `FixedClock` and `store_today`, a temp checkpointer and a temp handoff log, and runs the turns.
 - It records the tool calls from the message history, the replies and the per-turn latency, then checks the expectations.
-- Returns `CaseResult(id, passed, failures, tool_calls, latency_ms, replies)`. It sleeps `EVAL_DELAY_S` between cases.
-- An LLM error in one case marks that case as `error` and continues.
+- Returns `CaseResult(id, passed, failures, tool_calls, latency_ms, replies, error)`; `latency_ms` has one entry per turn. `run_cases` sleeps `EVAL_DELAY_S` between cases.
+- An error in one case sets `error` (and `passed=False`) and the run continues.
+- `case_deps` always sets `store_today` to the case's value (`None` when absent), so `STORE_TODAY` in the environment never leaks into a case. Each case gets a fresh chat model and a temp directory for its checkpoint DB and handoff log.
+- Report latency is per turn; p50/p95 use the nearest-rank method.
+- `conftest.py` skips `llm` tests when the provider key for `LLM_MODEL` is missing.
 
 **Two entry points, one harness:**
 - `uv run emporio eval` prints a Rich table and writes `var/eval-report.md` (per case: pass/fail, failures, tools called, latency; totals: pass rate, p50/p95 turn latency, model, prompt version, date).

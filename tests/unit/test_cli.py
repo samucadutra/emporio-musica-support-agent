@@ -230,3 +230,68 @@ def test_export_unknown_session(cli_runner: CliRunner, cli_env: Path) -> None:
 
     assert result.exit_code == 1
     assert "unknown session" in result.output
+
+
+EVAL_CASES = """
+- id: lists-categories
+  description: d
+  turns: ["O que vocês vendem?"]
+  expect: {must_call: [list_categories], must_include: [violoes]}
+- id: other
+  description: d
+  turns: ["Oi"]
+  expect: {must_include: [olá]}
+"""
+
+
+@pytest.fixture
+def eval_files(cli_env: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("EVAL_DELAY_S", "0")
+    path = cli_env / "cases.yaml"
+    path.write_text(EVAL_CASES, encoding="utf-8")
+    return path
+
+
+def test_eval_writes_report_and_exits_1_on_failure(
+    cli_runner: CliRunner, eval_files: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scripts = iter(
+        [
+            [calls(tool_call("list_categories")), AIMessage(content="Violões e mais.")],
+            [AIMessage(content="Tchau.")],
+        ]
+    )
+    monkeypatch.setattr(cli, "make_chat_model", lambda s: ScriptedChatModel(script=next(scripts)))
+    report = eval_files.parent / "report.md"
+    result = run(cli_runner, ["eval", "--cases", str(eval_files), "--report", str(report)])
+    assert result.exit_code == 1, result.output
+    assert "1/2 passed" in result.output
+    text = report.read_text(encoding="utf-8")
+    assert "Pass rate: 1/2" in text and "| lists-categories | PASS |" in text
+
+
+def test_eval_selected_case_passes(
+    cli_runner: CliRunner, eval_files: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    steps = [calls(tool_call("list_categories")), AIMessage(content="Violões.")]
+    monkeypatch.setattr(cli, "make_chat_model", lambda s: ScriptedChatModel(script=list(steps)))
+    report = eval_files.parent / "report.md"
+    args = ["eval", "--cases", str(eval_files), "--case", "lists-categories", "--report"]
+    result = run(cli_runner, [*args, str(report)])
+    assert result.exit_code == 0, result.output
+    assert "1/1 passed" in result.output
+
+
+def test_eval_unknown_case_exits_2(cli_runner: CliRunner, eval_files: Path) -> None:
+    result = run(cli_runner, ["eval", "--cases", str(eval_files), "--case", "nope"])
+    assert result.exit_code == 2
+    assert "nope" in result.output
+
+
+def test_eval_missing_key_exits_2(
+    cli_runner: CliRunner, eval_files: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GOOGLE_API_KEY")
+    result = run(cli_runner, ["eval", "--cases", str(eval_files)])
+    assert result.exit_code == 2
+    assert "GOOGLE_API_KEY" in result.output

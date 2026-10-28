@@ -9,9 +9,28 @@ from typer.testing import CliRunner
 
 from emporio_musica_support_agent.config import Settings
 from emporio_musica_support_agent.data.repository import Repository
+from emporio_musica_support_agent.llm import MissingApiKeyError, check_api_key
 from emporio_musica_support_agent.logging_setup import LOGGER_NAME
 
 REPO_ROOT = Path(__file__).parents[1]
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Skip `llm` tests when the key for LLM_MODEL's provider is not set (design §13)."""
+    llm_items = [item for item in items if item.get_closest_marker("llm")]
+    if not llm_items:
+        return
+    settings = Settings()
+    try:
+        check_api_key(settings)
+        return
+    except MissingApiKeyError as error:
+        reason = f"needs {error.variable} for {settings.llm_model}"
+    except ValueError as error:
+        reason = str(error)
+    skip = pytest.mark.skip(reason=reason)
+    for item in llm_items:
+        item.add_marker(skip)
 
 
 @pytest.fixture

@@ -30,6 +30,9 @@ from emporio_musica_support_agent.config import Settings
 from emporio_musica_support_agent.data.loader import DataFileNotFoundError
 from emporio_musica_support_agent.data.validation import DataValidationError, validate
 from emporio_musica_support_agent.domain.store import WHATSAPP
+from emporio_musica_support_agent.evals.cases import EvalCaseError, load_cases
+from emporio_musica_support_agent.evals.harness import CaseResult, run_cases
+from emporio_musica_support_agent.evals.report import render_report, results_table, status_of
 from emporio_musica_support_agent.export import (
     UnknownSessionError,
     export_session,
@@ -325,3 +328,45 @@ def export_command(
     finally:
         checkpointer.conn.close()
     console.print(f"Exported to {path}")
+
+
+@app.command("eval")
+def eval_command(
+    cases: Annotated[Path, typer.Option(help="Eval cases file.")] = Path("evals/cases.yaml"),
+    case: Annotated[
+        list[str] | None, typer.Option("--case", help="Run only this case ID (repeatable).")
+    ] = None,
+    report: Annotated[Path, typer.Option(help="Markdown report path.")] = Path(
+        "var/eval-report.md"
+    ),
+    verbose: Annotated[bool, typer.Option(help="Show INFO logs.")] = False,
+) -> None:
+    """Run the agent eval cases and write a pass/fail and latency report."""
+    console = Console()
+    try:
+        selected = load_cases(cases)
+    except EvalCaseError as error:
+        _fail(console, str(error), 2)
+    if case:
+        unknown = sorted(set(case) - {c.id for c in selected})
+        if unknown:
+            _fail(console, f"unknown case(s): {', '.join(unknown)}", 2)
+        selected = [c for c in selected if c.id in case]
+    settings = Settings()
+    deps = _start_up(console, settings, verbose)
+
+    def show(result: CaseResult) -> None:
+        console.print(f"{status_of(result):5} {result.id}")
+
+    try:
+        results = run_cases(selected, deps, lambda: make_chat_model(deps.settings), on_result=show)
+    except ProviderPackageError as error:
+        _fail(console, str(error), 2)
+    console.print(results_table(results))
+    report.parent.mkdir(parents=True, exist_ok=True)
+    today = reference_date(settings, deps.clock)
+    report.write_text(render_report(results, settings, today), encoding="utf-8")
+    passed = sum(1 for r in results if r.passed)
+    console.print(f"{passed}/{len(results)} passed · report: {report}")
+    if passed != len(results):
+        raise typer.Exit(code=1)
